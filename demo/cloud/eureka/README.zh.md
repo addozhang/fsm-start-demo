@@ -5,7 +5,7 @@
 ```bash
 system=$(uname -s | tr [:upper:] [:lower:])
 arch=$(dpkg --print-architecture)
-release=v1.1.1
+release=v1.2.0
 curl -L https://github.com/cybwan/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
 ./${system}-${arch}/fsm version
 cp ./${system}-${arch}/fsm /usr/local/bin/
@@ -15,16 +15,12 @@ cp ./${system}-${arch}/fsm /usr/local/bin/
 
 ```bash
 #部署Eureka服务
-export DEMO_HOME=https://raw.githubusercontent.com/cybwan/fsm-start-demo/main
-curl $DEMO_HOME/demo/cloud/eureka/eureka.yml -o /tmp/eureka.yml
+export DEMO_HOME=https://raw.githubusercontent.com/flomesh-io/springboot-bookstore-demo/main
+kubectl apply -n default -f $DEMO_HOME/manifests/eureka.yaml
+kubectl wait --all --for=condition=ready pod -n default -l app=eureka --timeout=180s
 
-kubectl create namespace disco
-kubectl apply -n disco -f /tmp/eureka.yml
-
-kubectl wait --for=condition=ready pod -n disco -l app=eureka-service --timeout=180s
-
-POD=$(kubectl get pods --selector app=eureka-service -n disco --no-headers | grep 'Running' | awk 'NR==1{print $1}')
-kubectl port-forward "$POD" -n disco 8761:8761 --address 0.0.0.0
+POD=$(kubectl get pods --selector app=eureka -n default --no-headers | grep 'Running' | awk 'NR==1{print $1}')
+kubectl port-forward "$POD" -n default 8761:8761 --address 0.0.0.0
 ```
 
 ## 3. 安装 fsm
@@ -32,13 +28,13 @@ kubectl port-forward "$POD" -n disco 8761:8761 --address 0.0.0.0
 ```bash
 export fsm_namespace=fsm-system
 export fsm_mesh_name=fsm
-export eureka_svc_addr="$(kubectl get svc -n disco --field-selector metadata.name=eureka-service -o jsonpath='{.items[0].spec.clusterIP}')"
+export eureka_svc_addr="$(kubectl get svc -n default --field-selector metadata.name=eureka -o jsonpath='{.items[0].spec.clusterIP}')"
 fsm install \
     --mesh-name "$fsm_mesh_name" \
     --fsm-namespace "$fsm_namespace" \
     --set=fsm.certificateProvider.kind=tresor \
     --set=fsm.image.registry=cybwan \
-    --set=fsm.image.tag=1.1.1 \
+    --set=fsm.image.tag=1.2.0 \
     --set=fsm.image.pullPolicy=Always \
     --set=fsm.sidecarLogLevel=debug \
     --set=fsm.controllerLogLevel=warn \
@@ -48,6 +44,7 @@ fsm install \
     --set=fsm.cloudConnector.eureka.deriveNamespace=eureka-derive \
     --set=fsm.cloudConnector.eureka.httpAddr=http://$eureka_svc_addr:8761/eureka \
     --set=fsm.cloudConnector.eureka.passingOnly=false \
+    --set=fsm.cloudConnector.eureka.suffixMetadata=version \
     --timeout=900s
 
 #用于承载转义的consul k8s services 和 endpoints
@@ -92,13 +89,13 @@ kubectl apply -f - <<EOF
 kind: AccessControl
 apiVersion: policy.flomesh.io/v1alpha1
 metadata:
-  name: eureka-service
-  namespace: disco
+  name: eureka
+  namespace: eureka-derive
 spec:
   sources:
   - kind: Service
-    namespace: disco
-    name: eureka-service
+    namespace: eureka-derive
+    name: eureka
 EOF
 ```
 
@@ -107,42 +104,89 @@ EOF
 
 ```bash
 #模拟业务服务
-export DEMO_HOME=https://raw.githubusercontent.com/cybwan/fsm-start-demo/main
-kubectl create namespace eureka-demo
-fsm namespace add eureka-demo
+export DEMO_HOME=https://raw.githubusercontent.com/flomesh-io/springboot-bookstore-demo/main
 
-curl $DEMO_HOME/demo/cloud/eureka/provider1.yml -o /tmp/provider1.yml
-curl $DEMO_HOME/demo/cloud/eureka/provider2.yml -o /tmp/provider2.yml
-curl $DEMO_HOME/demo/cloud/eureka/consumer.yml -o /tmp/consumer.yml
-curl $DEMO_HOME/demo/cloud/eureka/curl.yml -o /tmp/curl.yml
+kubectl create namespace bookwarehouse
+kubectl create namespace bookstore
+kubectl create namespace bookbuyer
 
-kubectl apply -n eureka-demo -f /tmp/provider1.yml
-kubectl apply -n eureka-demo -f /tmp/provider2.yml
-kubectl apply -n eureka-demo -f /tmp/consumer.yml
-kubectl apply -n eureka-demo -f /tmp/curl.yml
+fsm namespace add bookstore bookbuyer bookwarehouse
 
-#等待依赖的 POD 正常启动
-kubectl wait --for=condition=ready pod -n eureka-demo -l app=provider1 --timeout=180s
-kubectl wait --for=condition=ready pod -n eureka-demo -l app=provider2 --timeout=180s
-kubectl wait --for=condition=ready pod -n eureka-demo -l app=consumer --timeout=180s
-kubectl wait --for=condition=ready pod -n eureka-demo -l app=curl --timeout=180s
+kubectl apply -n bookwarehouse -f $DEMO_HOME/manifests/eureka/bookwarehouse-eureka.yaml
+kubectl wait --all --for=condition=ready pod -n bookwarehouse -l app=bookwarehouse --timeout=180s
+
+kubectl apply -n bookstore -f $DEMO_HOME/manifests/eureka/bookstore-eureka.yaml
+kubectl apply -n bookstore -f $DEMO_HOME/manifests/eureka/bookstore-v2-eureka.yaml
+kubectl wait --all --for=condition=ready pod -n bookstore -l app=bookstore --timeout=180s
+
+kubectl apply -n bookbuyer -f $DEMO_HOME/manifests/eureka/bookbuyer-eureka.yaml
+kubectl wait --all --for=condition=ready pod -n bookbuyer -l app=bookbuyer --timeout=180s
 ```
 
-### 4.6 测试指令
-
-多次执行:
+### 4.6 业务端口转发
 
 ```bash
-NS=cloud
-POD=$(kubectl get pod -n eureka-demo -l app=curl -o jsonpath='{.items..metadata.name}')
-kubectl exec "$POD" -n eureka-demo -c curl -- curl -s http://consumer:8001/hello
+BUYER_V1_POD="$(kubectl get pods --selector app=bookbuyer,version=v1 -n bookbuyer --no-headers | grep 'Running' | awk 'NR==1{print $1}')"
+STORE_V1_POD="$(kubectl get pods --selector app=bookstore,version=v1 -n bookstore --no-headers | grep 'Running' | awk 'NR==1{print $1}')"
+STORE_V2_POD="$(kubectl get pods --selector app=bookstore,version=v2 -n bookstore --no-headers | grep 'Running' | awk 'NR==1{print $1}')"
+
+kubectl port-forward $BUYER_V1_POD -n bookbuyer 8080:14001 --address 0.0.0.0 &
+kubectl port-forward $STORE_V1_POD -n bookstore 8084:14001 --address 0.0.0.0 &
+kubectl port-forward $STORE_V2_POD -n bookstore 8082:14001 --address 0.0.0.0 &
 ```
 
-正确返回结果类似于:
+### 4.6 设置分流策略
 
-```text
-I`m provider 1 ,Hello consumer!
-I`m provider 2 ,Hello consumer!
-I`m provider 1 ,Hello consumer!
-I`m provider 2 ,Hello consumer!
+#### 4.6.1 流量全部走bookstore-v1
+
+```bash
+kubectl apply -n eureka-derive -f - <<EOF
+apiVersion: split.smi-spec.io/v1alpha4
+kind: TrafficSplit
+metadata:
+  name: bookstore-split
+spec:
+  service: bookstore
+  backends:
+  - service: bookstore-v1
+    weight: 100
+  - service: bookstore-v2
+    weight: 0
+EOF
+```
+
+#### 4.6.2 流量全部走bookstore-v2
+
+```bash
+kubectl apply -n eureka-derive -f - <<EOF
+apiVersion: split.smi-spec.io/v1alpha4
+kind: TrafficSplit
+metadata:
+  name: bookstore-split
+spec:
+  service: bookstore
+  backends:
+  - service: bookstore-v1
+    weight: 0
+  - service: bookstore-v2
+    weight: 100
+EOF
+```
+
+#### 4.6.3 流量均分
+
+```bash
+kubectl apply -n eureka-derive -f - <<EOF
+apiVersion: split.smi-spec.io/v1alpha4
+kind: TrafficSplit
+metadata:
+  name: bookstore-split
+spec:
+  service: bookstore
+  backends:
+  - service: bookstore-v1
+    weight: 50
+  - service: bookstore-v2
+    weight: 50
+EOF
 ```
