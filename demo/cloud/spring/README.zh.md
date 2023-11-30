@@ -61,7 +61,7 @@ fsm install \
     --set=fsm.cloudConnector.eureka.syncToK8S.withGatewayAPI=true \
     --set=fsm.cloudConnector.eureka.syncFromK8S.enable=true \
     --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.enable=true \
-    --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.via=ClusterIP \
+    --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.via=ExternalIP \
     --set "fsm.cloudConnector.eureka.syncFromK8S.denyK8sNamespaces={default,kube-system,fsm-system}" \
     --set=fsm.cloudConnector.eureka.syncToFgw.enable=true \
     --set "fsm.cloudConnector.eureka.syncToFgw.denyK8sNamespaces={default,kube-system,fsm-system}" \
