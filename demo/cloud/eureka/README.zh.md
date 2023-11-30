@@ -51,7 +51,7 @@ fsm install \
     --set fsm.fsmIngress.enabled=false \
     --set fsm.fsmGateway.enabled=true \
     --set=fsm.localDNSProxy.enable=true \
-    --set=fsm.localDNSProxy.primaryUpstreamDNSServerIPAddr="${dns_svc_ip}"
+    --set=fsm.localDNSProxy.primaryUpstreamDNSServerIPAddr=$dns_svc_ip \
     --set fsm.featureFlags.enableValidateHTTPRouteHostnames=false \
     --set fsm.featureFlags.enableValidateGRPCRouteHostnames=false \
     --set fsm.featureFlags.enableValidateTLSRouteHostnames=false \
@@ -71,7 +71,7 @@ fsm install \
     --set "fsm.cloudConnector.eureka.syncToFgw.denyK8sNamespaces={default,kube-system,fsm-system}" \
     --timeout=900s
 
-#用于承载转义的consul k8s services 和 endpoints
+#用于承载转义的eureka k8s services 和 endpoints
 kubectl create namespace eureka-derive
 fsm namespace add eureka-derive
 kubectl patch namespace eureka-derive -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"eureka"}}}'  --type=merge
