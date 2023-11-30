@@ -5,7 +5,7 @@
 ```bash
 system=$(uname -s | tr [:upper:] [:lower:])
 arch=$(dpkg --print-architecture)
-release=v1.2.0
+release=v1.2.11
 curl -L https://github.com/cybwan/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
 ./${system}-${arch}/fsm version
 cp ./${system}-${arch}/fsm /usr/local/bin/
@@ -29,22 +29,31 @@ kubectl port-forward "$POD" -n default 8500:8500 --address 0.0.0.0
 export fsm_namespace=fsm-system
 export fsm_mesh_name=fsm
 export consul_svc_addr="$(kubectl get svc -l name=consul -o jsonpath='{.items[0].spec.clusterIP}')"
+echo $consul_svc_addr
+
 fsm install \
     --mesh-name "$fsm_mesh_name" \
     --fsm-namespace "$fsm_namespace" \
     --set=fsm.certificateProvider.kind=tresor \
     --set=fsm.image.registry=cybwan \
-    --set=fsm.image.tag=1.2.0 \
+    --set=fsm.image.tag=1.2.11 \
     --set=fsm.image.pullPolicy=Always \
     --set=fsm.sidecarLogLevel=debug \
     --set=fsm.controllerLogLevel=warn \
     --set=fsm.serviceAccessMode=mixed \
     --set=fsm.featureFlags.enableAutoDefaultRoute=true \
-    --set=fsm.deployConsulConnector=true \
+    --set=clusterSet.region=LN \
+    --set=clusterSet.zone=DL \
+    --set=clusterSet.group=FLOMESH \
+    --set=clusterSet.name=LAB \
+    --set=fsm.cloudConnector.consul.enable=true \
     --set=fsm.cloudConnector.consul.deriveNamespace=consul-derive \
     --set=fsm.cloudConnector.consul.httpAddr=$consul_svc_addr:8500 \
-    --set=fsm.cloudConnector.consul.passingOnly=false \
-    --set=fsm.cloudConnector.consul.suffixTag=version \
+    --set=fsm.cloudConnector.consul.syncToK8S.enable=true \
+    --set=fsm.cloudConnector.consul.syncToK8S.passingOnly=false \
+    --set=fsm.cloudConnector.consul.syncToK8S.suffixTag=version \
+    --set=fsm.cloudConnector.consul.syncFromK8S.enable=true \
+    --set "fsm.cloudConnector.consul.syncFromK8S.denyK8sNamespaces={default,kube-system,local-path-storage,fsm-system}" \
     --timeout=900s
 
 #用于承载转义的consul k8s services 和 endpoints
