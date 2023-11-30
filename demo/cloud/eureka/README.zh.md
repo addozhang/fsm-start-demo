@@ -28,6 +28,8 @@ kubectl port-forward "$POD" -n default 8761:8761 --address 0.0.0.0 &
 ```bash
 export fsm_namespace=fsm-system
 export fsm_mesh_name=fsm
+export dns_svc_ip="$(kubectl get svc -n kube-system -l k8s-app=kube-dns -o jsonpath='{.items[0].spec.clusterIP}')"
+echo $dns_svc_ip
 export eureka_svc_addr="$(kubectl get svc -n default --field-selector metadata.name=eureka -o jsonpath='{.items[0].spec.clusterIP}')"
 echo $eureka_svc_addr
 
@@ -46,20 +48,51 @@ fsm install \
     --set=clusterSet.zone=DL \
     --set=clusterSet.group=FLOMESH \
     --set=clusterSet.name=LAB \
+    --set fsm.fsmIngress.enabled=false \
+    --set fsm.fsmGateway.enabled=true \
+    --set=fsm.localDNSProxy.enable=true \
+    --set=fsm.localDNSProxy.primaryUpstreamDNSServerIPAddr="${dns_svc_ip}"
+    --set fsm.featureFlags.enableValidateHTTPRouteHostnames=false \
+    --set fsm.featureFlags.enableValidateGRPCRouteHostnames=false \
+    --set fsm.featureFlags.enableValidateTLSRouteHostnames=false \
+    --set fsm.featureFlags.enableValidateGatewayListenerHostname=false \
     --set=fsm.cloudConnector.eureka.enable=true \
     --set=fsm.cloudConnector.eureka.deriveNamespace=eureka-derive \
     --set=fsm.cloudConnector.eureka.httpAddr=http://$eureka_svc_addr:8761/eureka \
     --set=fsm.cloudConnector.eureka.syncToK8S.enable=true \
     --set=fsm.cloudConnector.eureka.syncToK8S.passingOnly=false \
     --set=fsm.cloudConnector.eureka.syncToK8S.suffixMetadata=version \
+    --set=fsm.cloudConnector.eureka.syncToK8S.withGatewayAPI=true \
     --set=fsm.cloudConnector.eureka.syncFromK8S.enable=true \
-    --set "fsm.cloudConnector.eureka.syncFromK8S.denyK8sNamespaces={default,kube-system,local-path-storage,fsm-system}" \
+    --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.enable=true \
+    --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.via=ClusterIP \
+    --set "fsm.cloudConnector.eureka.syncFromK8S.denyK8sNamespaces={default,kube-system,fsm-system}" \
+    --set=fsm.cloudConnector.eureka.syncToFgw.enable=true \
+    --set "fsm.cloudConnector.eureka.syncToFgw.denyK8sNamespaces={default,kube-system,fsm-system}" \
     --timeout=900s
 
 #用于承载转义的consul k8s services 和 endpoints
 kubectl create namespace eureka-derive
 fsm namespace add eureka-derive
 kubectl patch namespace eureka-derive -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"eureka"}}}'  --type=merge
+```
+
+## 部署FGW网关
+
+```
+export fsm_namespace=fsm-system
+cat <<EOF | kubectl apply -n "$fsm_namespace" -f -
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: Gateway
+metadata:
+  name: k8s-fgw
+spec:
+  gatewayClassName: fsm-gateway-cls
+  listeners:
+    - protocol: HTTP
+      port: 10080
+      name: http
+EOF
 ```
 
 ## 4. Eureka集成测试

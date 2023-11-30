@@ -28,6 +28,8 @@ kubectl port-forward "$POD" -n default 8761:8761 --address 0.0.0.0 &
 ```bash
 export fsm_namespace=fsm-system
 export fsm_mesh_name=fsm
+export dns_svc_ip="$(kubectl get svc -n kube-system -l k8s-app=kube-dns -o jsonpath='{.items[0].spec.clusterIP}')"
+echo $dns_svc_ip
 export eureka_svc_addr="$(kubectl get svc -n default --field-selector metadata.name=eureka -o jsonpath='{.items[0].spec.clusterIP}')"
 echo $eureka_svc_addr
 
@@ -48,6 +50,8 @@ fsm install \
     --set=clusterSet.name=LAB \
     --set fsm.fsmIngress.enabled=false \
     --set fsm.fsmGateway.enabled=true \
+    --set=fsm.localDNSProxy.enable=true \
+    --set=fsm.localDNSProxy.primaryUpstreamDNSServerIPAddr="${dns_svc_ip}"
     --set fsm.featureFlags.enableValidateHTTPRouteHostnames=false \
     --set fsm.featureFlags.enableValidateGRPCRouteHostnames=false \
     --set fsm.featureFlags.enableValidateTLSRouteHostnames=false \
