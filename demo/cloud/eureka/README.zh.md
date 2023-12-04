@@ -37,8 +37,8 @@ fsm install \
     --mesh-name "$fsm_mesh_name" \
     --fsm-namespace "$fsm_namespace" \
     --set=fsm.certificateProvider.kind=tresor \
-    --set=fsm.image.registry=cybwan \
-    --set=fsm.image.tag=1.2.11 \
+    --set=fsm.image.registry=localhost:5000/flomesh \
+    --set=fsm.image.tag=latest \
     --set=fsm.image.pullPolicy=Always \
     --set=fsm.sidecarLogLevel=debug \
     --set=fsm.controllerLogLevel=warn \
@@ -62,19 +62,28 @@ fsm install \
     --set=fsm.cloudConnector.eureka.syncToK8S.enable=true \
     --set=fsm.cloudConnector.eureka.syncToK8S.passingOnly=false \
     --set=fsm.cloudConnector.eureka.syncToK8S.suffixMetadata=version \
-    --set=fsm.cloudConnector.eureka.syncToK8S.withGatewayAPI=true \
+    --set=fsm.cloudConnector.eureka.syncToK8S.withGatewayAPI.enable=false \
     --set=fsm.cloudConnector.eureka.syncFromK8S.enable=true \
-    --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.enable=true \
-    --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.via=ClusterIP \
     --set "fsm.cloudConnector.eureka.syncFromK8S.denyK8sNamespaces={default,kube-system,fsm-system}" \
-    --set=fsm.cloudConnector.eureka.syncToFgw.enable=true \
-    --set "fsm.cloudConnector.eureka.syncToFgw.denyK8sNamespaces={default,kube-system,fsm-system}" \
+    --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.enable=false \
+    --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.via=ClusterIP \
+    --set=fsm.cloudConnector.machine.enable=true \
+    --set=fsm.cloudConnector.machine.deriveNamespace=vm-derive \
+    --set=fsm.cloudConnector.machine.syncToK8S.enable=true \
+    --set=fsm.cloudConnector.machine.syncToK8S.withGatewayAPI.enable=false \
+    --set=fsm.cloudConnector.gateway.enable=true \
+    --set "fsm.cloudConnector.gateway.syncToFgw.denyK8sNamespaces={default,kube-system,fsm-system}" \
     --timeout=900s
 
 #用于承载转义的eureka k8s services 和 endpoints
 kubectl create namespace eureka-derive
 fsm namespace add eureka-derive
 kubectl patch namespace eureka-derive -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"eureka"}}}'  --type=merge
+
+#用于承载转义的virtual machine k8s services 和 endpoints
+kubectl create namespace vm-derive
+fsm namespace add vm-derive
+kubectl patch namespace vm-derive -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"machine"}}}'  --type=merge
 ```
 
 ## 部署FGW网关
@@ -232,3 +241,53 @@ spec:
     weight: 50
 EOF
 ```
+
+
+
+```bash
+export fsm_namespace=fsm-system
+export fsm_mesh_name=fsm
+
+fsm install \
+    --mesh-name "$fsm_mesh_name" \
+    --fsm-namespace "$fsm_namespace" \
+    --set=fsm.certificateProvider.kind=tresor \
+    --set=fsm.image.registry=localhost:5000/flomesh \
+    --set=fsm.image.tag=latest \
+    --set=fsm.image.pullPolicy=Always \
+    --set=fsm.sidecarLogLevel=debug \
+    --set=fsm.controllerLogLevel=warn \
+    --set=fsm.serviceAccessMode=mixed \
+    --set=clusterSet.region=LN \
+    --set=clusterSet.zone=DL \
+    --set=clusterSet.group=FLOMESH \
+    --set=clusterSet.name=LAB \
+    --timeout=900s
+
+kubectl create namespace curl
+fsm namespace add curl
+
+kubectl apply -n curl -f https://raw.githubusercontent.com/cybwan/fsm-start-demo/main/demo/access-control/curl.yaml
+sleep 1
+kubectl wait --for=condition=ready pod -n curl -l app=curl --timeout=180s
+
+kubectl apply -n vm-derive -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vm
+---
+kind: VirtualMachine
+apiVersion: machine.flomesh.io/v1alpha1
+metadata:
+  name: vm6
+spec:
+  serviceAccountName: vm
+  sidecarIP: 192.168.127.7
+  machineIP: 192.168.127.8
+  services:
+  - serviceName: weblogic
+    port: 10010    
+EOF
+```
+
