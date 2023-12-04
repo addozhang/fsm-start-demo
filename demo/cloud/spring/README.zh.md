@@ -5,7 +5,7 @@
 ```bash
 system=$(uname -s | tr [:upper:] [:lower:])
 arch=$(dpkg --print-architecture)
-release=v1.2.11
+release=v1.2.16
 curl -L https://github.com/cybwan/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
 ./${system}-${arch}/fsm version
 cp ./${system}-${arch}/fsm /usr/local/bin/
@@ -38,7 +38,7 @@ fsm install \
     --fsm-namespace "$fsm_namespace" \
     --set=fsm.certificateProvider.kind=tresor \
     --set=fsm.image.registry=cybwan \
-    --set=fsm.image.tag=1.2.11 \
+    --set=fsm.image.tag=1.2.16 \
     --set=fsm.image.pullPolicy=Always \
     --set=fsm.sidecarLogLevel=debug \
     --set=fsm.controllerLogLevel=warn \
@@ -62,19 +62,28 @@ fsm install \
     --set=fsm.cloudConnector.eureka.syncToK8S.enable=true \
     --set=fsm.cloudConnector.eureka.syncToK8S.passingOnly=false \
     --set=fsm.cloudConnector.eureka.syncToK8S.suffixMetadata=version \
-    --set=fsm.cloudConnector.eureka.syncToK8S.withGatewayAPI=true \
+    --set=fsm.cloudConnector.eureka.syncToK8S.withGatewayAPI.enable=true \
     --set=fsm.cloudConnector.eureka.syncFromK8S.enable=true \
+    --set "fsm.cloudConnector.eureka.syncFromK8S.denyK8sNamespaces={default,kube-system,fsm-system}" \
     --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.enable=true \
     --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.via=ExternalIP \
-    --set "fsm.cloudConnector.eureka.syncFromK8S.denyK8sNamespaces={default,kube-system,fsm-system}" \
-    --set=fsm.cloudConnector.eureka.syncToFgw.enable=true \
-    --set "fsm.cloudConnector.eureka.syncToFgw.denyK8sNamespaces={default,kube-system,fsm-system}" \
+    --set=fsm.cloudConnector.machine.enable=true \
+    --set=fsm.cloudConnector.machine.deriveNamespace=vm-derive \
+    --set=fsm.cloudConnector.machine.syncToK8S.enable=true \
+    --set=fsm.cloudConnector.machine.syncToK8S.withGatewayAPI.enable=true \
+    --set=fsm.cloudConnector.gateway.enable=true \
+    --set "fsm.cloudConnector.gateway.syncToFgw.denyK8sNamespaces={default,kube-system,fsm-system}" \
     --timeout=900s
 
 #用于承载转义的consul k8s services 和 endpoints
 kubectl create namespace eureka-derive
 fsm namespace add eureka-derive
 kubectl patch namespace eureka-derive -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"eureka"}}}'  --type=merge
+
+#用于承载转义的virtual machine k8s services 和 endpoints
+kubectl create namespace vm-derive
+fsm namespace add vm-derive
+kubectl patch namespace vm-derive -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"machine"}}}'  --type=merge
 ```
 
 ## 部署FGW网关
@@ -94,6 +103,35 @@ spec:
       name: http
 EOF
 ```
+
+## 登记虚机
+
+```
+kubectl apply -n vm-derive -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vm
+---
+kind: VirtualMachine
+apiVersion: machine.flomesh.io/v1alpha1
+metadata:
+  name: vm6
+spec:
+  serviceAccountName: vm
+  sidecarIP: 192.168.127.7
+  machineIP: 192.168.127.8
+  services:
+  - serviceName: weblogic
+    port: 10010    
+EOF
+```
+
+
+
+**以下请忽略**
+
+
 
 ## 4. Eureka集成测试
 
@@ -140,5 +178,3 @@ spec:
     name: eureka
 EOF
 ```
-
-#### 
