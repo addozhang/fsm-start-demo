@@ -233,7 +233,7 @@ spec:
       )(),
     
       requestFilterCache = new algo.Cache(
-        match => makeRequestModifierHandler(match?.Filters)
+        match => makeRequestModifierHandler(match)
       ),
     
       makeResponseModifierHandler = cfg => (
