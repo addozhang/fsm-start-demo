@@ -5,7 +5,7 @@
 ```bash
 system=$(uname -s | tr [:upper:] [:lower:])
 arch=$(dpkg --print-architecture)
-release=v1.2.16
+release=v1.2.13
 curl -L https://github.com/cybwan/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
 ./${system}-${arch}/fsm version
 cp ./${system}-${arch}/fsm /usr/local/bin/
@@ -38,7 +38,7 @@ fsm install \
     --fsm-namespace "$fsm_namespace" \
     --set=fsm.certificateProvider.kind=tresor \
     --set=fsm.image.registry=cybwan \
-    --set=fsm.image.tag=1.2.16 \
+    --set=fsm.image.tag=1.2.13 \
     --set=fsm.image.pullPolicy=Always \
     --set=fsm.sidecarLogLevel=debug \
     --set=fsm.controllerLogLevel=warn \
@@ -56,34 +56,38 @@ fsm install \
     --set fsm.featureFlags.enableValidateGRPCRouteHostnames=false \
     --set fsm.featureFlags.enableValidateTLSRouteHostnames=false \
     --set fsm.featureFlags.enableValidateGatewayListenerHostname=false \
+    --set fsm.featureFlags.enableGatewayProxyTag=true \
     --set=fsm.cloudConnector.eureka.enable=true \
-    --set=fsm.cloudConnector.eureka.deriveNamespace=eureka-derive \
+    --set=fsm.cloudConnector.eureka.deriveNamespace=derive-eureka \
     --set=fsm.cloudConnector.eureka.httpAddr=http://$eureka_svc_addr:8761/eureka \
     --set=fsm.cloudConnector.eureka.syncToK8S.enable=true \
     --set=fsm.cloudConnector.eureka.syncToK8S.passingOnly=false \
     --set=fsm.cloudConnector.eureka.syncToK8S.suffixMetadata=version \
-    --set=fsm.cloudConnector.eureka.syncToK8S.withGatewayAPI.enable=true \
+    --set=fsm.cloudConnector.eureka.syncToK8S.withGateway.enable=true \
     --set=fsm.cloudConnector.eureka.syncFromK8S.enable=true \
     --set "fsm.cloudConnector.eureka.syncFromK8S.denyK8sNamespaces={default,kube-system,fsm-system}" \
-    --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.enable=true \
-    --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.via=ExternalIP \
+    --set=fsm.cloudConnector.eureka.syncFromK8S.withGateway.enable=true \
     --set=fsm.cloudConnector.machine.enable=true \
-    --set=fsm.cloudConnector.machine.deriveNamespace=vm-derive \
+    --set=fsm.cloudConnector.machine.asInternalServices=true \
+    --set=fsm.cloudConnector.machine.deriveNamespace=derive-vm \
     --set=fsm.cloudConnector.machine.syncToK8S.enable=true \
-    --set=fsm.cloudConnector.machine.syncToK8S.withGatewayAPI.enable=true \
+    --set=fsm.cloudConnector.machine.syncToK8S.withGatewayEgress.enable=true \
     --set=fsm.cloudConnector.gateway.enable=true \
     --set "fsm.cloudConnector.gateway.syncToFgw.denyK8sNamespaces={default,kube-system,fsm-system}" \
+    --set=fsm.cloudConnector.viaGateway.ingress.ipSelector=ExternalIP \
+    --set=fsm.cloudConnector.viaGateway.ingress.httpPort=10080 \
+    --set=fsm.cloudConnector.viaGateway.egress.httpPort=10090 \
     --timeout=900s
 
-#用于承载转义的consul k8s services 和 endpoints
-kubectl create namespace eureka-derive
-fsm namespace add eureka-derive
-kubectl patch namespace eureka-derive -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"eureka"}}}'  --type=merge
+#用于承载转义的 eureka k8s services 和 endpoints
+kubectl create namespace derive-eureka
+fsm namespace add derive-eureka
+kubectl patch namespace derive-eureka -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"eureka"}}}'  --type=merge
 
 #用于承载转义的virtual machine k8s services 和 endpoints
-kubectl create namespace vm-derive
-fsm namespace add vm-derive
-kubectl patch namespace vm-derive -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"machine"}}}'  --type=merge
+kubectl create namespace derive-vm
+fsm namespace add derive-vm
+kubectl patch namespace derive-vm -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"machine"}}}'  --type=merge
 ```
 
 ## 部署FGW网关
@@ -100,14 +104,17 @@ spec:
   listeners:
     - protocol: HTTP
       port: 10080
-      name: http
+      name: ingress-proxy
+    - protocol: HTTP
+      port: 10090
+      name: egress-proxy
 EOF
 ```
 
 ## 登记虚机
 
 ```
-kubectl apply -n vm-derive -f - <<EOF
+kubectl apply -n derive-vm -f - <<EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -119,7 +126,6 @@ metadata:
   name: vm6
 spec:
   serviceAccountName: vm
-  sidecarIP: 192.168.127.7
   machineIP: 192.168.127.8
   services:
   - serviceName: weblogic
