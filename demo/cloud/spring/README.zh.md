@@ -71,7 +71,7 @@ fsm install \
     --set=fsm.cloudConnector.machine.asInternalServices=true \
     --set=fsm.cloudConnector.machine.deriveNamespace=derive-vm \
     --set=fsm.cloudConnector.machine.syncToK8S.enable=true \
-    --set=fsm.cloudConnector.machine.syncToK8S.withGatewayEgress.enable=true \
+    --set=fsm.cloudConnector.machine.syncToK8S.withGateway.enable=true \
     --set=fsm.cloudConnector.gateway.enable=true \
     --set "fsm.cloudConnector.gateway.syncToFgw.denyK8sNamespaces={default,kube-system,fsm-system}" \
     --set=fsm.cloudConnector.viaGateway.ingress.ipSelector=ExternalIP \
