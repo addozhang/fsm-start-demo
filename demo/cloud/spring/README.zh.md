@@ -71,7 +71,7 @@ fsm install \
     --set=fsm.cloudConnector.machine.deriveNamespace=derive-vm \
     --set=fsm.cloudConnector.machine.syncToK8S.enable=true \
     --set=fsm.cloudConnector.machine.syncToK8S.withGateway.enable=true \
-    --set=fsm.cloudConnector.gateway.ingress.ipSelector=ClusterIP \
+    --set=fsm.cloudConnector.gateway.ingress.ipSelector=ExternalIP \
     --set=fsm.cloudConnector.gateway.ingress.httpPort=10080 \
     --set=fsm.cloudConnector.gateway.egress.httpPort=10090 \
     --set=fsm.cloudConnector.gateway.syncToFgw.enable=true \
