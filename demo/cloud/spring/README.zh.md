@@ -5,7 +5,7 @@
 ```bash
 system=$(uname -s | tr [:upper:] [:lower:])
 arch=$(dpkg --print-architecture)
-release=v1.2.13
+release=v1.2.14
 curl -L https://github.com/cybwan/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
 ./${system}-${arch}/fsm version
 cp ./${system}-${arch}/fsm /usr/local/bin/
@@ -38,7 +38,7 @@ fsm install \
     --fsm-namespace "$fsm_namespace" \
     --set=fsm.certificateProvider.kind=tresor \
     --set=fsm.image.registry=cybwan \
-    --set=fsm.image.tag=1.2.13 \
+    --set=fsm.image.tag=1.2.14 \
     --set=fsm.image.pullPolicy=Always \
     --set=fsm.sidecarLogLevel=debug \
     --set=fsm.controllerLogLevel=warn \
@@ -62,7 +62,6 @@ fsm install \
     --set=fsm.cloudConnector.eureka.httpAddr=http://$eureka_svc_addr:8761/eureka \
     --set=fsm.cloudConnector.eureka.syncToK8S.enable=true \
     --set=fsm.cloudConnector.eureka.syncToK8S.passingOnly=false \
-    --set=fsm.cloudConnector.eureka.syncToK8S.suffixMetadata=version \
     --set=fsm.cloudConnector.eureka.syncToK8S.withGateway.enable=true \
     --set=fsm.cloudConnector.eureka.syncFromK8S.enable=true \
     --set "fsm.cloudConnector.eureka.syncFromK8S.denyK8sNamespaces={default,kube-system,fsm-system}" \
@@ -72,11 +71,11 @@ fsm install \
     --set=fsm.cloudConnector.machine.deriveNamespace=derive-vm \
     --set=fsm.cloudConnector.machine.syncToK8S.enable=true \
     --set=fsm.cloudConnector.machine.syncToK8S.withGateway.enable=true \
-    --set=fsm.cloudConnector.gateway.enable=true \
+    --set=fsm.cloudConnector.gateway.ingress.ipSelector=ClusterIP \
+    --set=fsm.cloudConnector.gateway.ingress.httpPort=10080 \
+    --set=fsm.cloudConnector.gateway.egress.httpPort=10090 \
+    --set=fsm.cloudConnector.gateway.syncToFgw.enable=true \
     --set "fsm.cloudConnector.gateway.syncToFgw.denyK8sNamespaces={default,kube-system,fsm-system}" \
-    --set=fsm.cloudConnector.viaGateway.ingress.ipSelector=ExternalIP \
-    --set=fsm.cloudConnector.viaGateway.ingress.httpPort=10080 \
-    --set=fsm.cloudConnector.viaGateway.egress.httpPort=10090 \
     --timeout=900s
 
 #用于承载转义的 eureka k8s services 和 endpoints
