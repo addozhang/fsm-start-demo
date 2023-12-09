@@ -42,7 +42,7 @@ fsm install \
     --set=fsm.image.registry=cybwan \
     --set=fsm.image.tag=1.2.15 \
     --set=fsm.image.pullPolicy=Always \
-    --set=fsm.sidecarLogLevel=debug \
+    --set=fsm.sidecarLogLevel=warn \
     --set=fsm.controllerLogLevel=warn \
     --set=fsm.serviceAccessMode=mixed \
     --set=fsm.featureFlags.enableAutoDefaultRoute=true \
@@ -53,7 +53,7 @@ fsm install \
     --set fsm.fsmIngress.enabled=false \
     --set fsm.fsmGateway.enabled=true \
     --set=fsm.localDNSProxy.enable=true \
-    --set=fsm.localDNSProxy.wildcard.enable=true \
+    --set=fsm.localDNSProxy.wildcard.enable=false \
     --set=fsm.localDNSProxy.primaryUpstreamDNSServerIPAddr=$dns_svc_ip \
     --set fsm.featureFlags.enableValidateHTTPRouteHostnames=false \
     --set fsm.featureFlags.enableValidateGRPCRouteHostnames=false \
@@ -123,7 +123,7 @@ fsm install \
     --set=fsm.image.registry=cybwan \
     --set=fsm.image.tag=1.2.15 \
     --set=fsm.image.pullPolicy=Always \
-    --set=fsm.sidecarLogLevel=debug \
+    --set=fsm.sidecarLogLevel=warn \
     --set=fsm.controllerLogLevel=warn \
     --set=fsm.serviceAccessMode=mixed \
     --set=fsm.featureFlags.enableAutoDefaultRoute=true \
@@ -134,7 +134,7 @@ fsm install \
     --set fsm.fsmIngress.enabled=false \
     --set fsm.fsmGateway.enabled=true \
     --set=fsm.localDNSProxy.enable=true \
-    --set=fsm.localDNSProxy.wildcard.enable=true \
+    --set=fsm.localDNSProxy.wildcard.enable=false \
     --set=fsm.localDNSProxy.primaryUpstreamDNSServerIPAddr=$dns_svc_ip \
     --set fsm.featureFlags.enableValidateHTTPRouteHostnames=false \
     --set fsm.featureFlags.enableValidateGRPCRouteHostnames=false \
