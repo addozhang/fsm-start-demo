@@ -5,7 +5,7 @@
 ```bash
 system=$(uname -s | tr [:upper:] [:lower:])
 arch=$(dpkg --print-architecture)
-release=v1.2.15
+release=v1.2.16
 curl -L https://github.com/cybwan/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
 ./${system}-${arch}/fsm version
 cp ./${system}-${arch}/fsm /usr/local/bin/
@@ -40,7 +40,7 @@ fsm install \
     --fsm-namespace "$fsm_namespace" \
     --set=fsm.certificateProvider.kind=tresor \
     --set=fsm.image.registry=cybwan \
-    --set=fsm.image.tag=1.2.15 \
+    --set=fsm.image.tag=1.2.16 \
     --set=fsm.image.pullPolicy=Always \
     --set=fsm.sidecarLogLevel=warn \
     --set=fsm.controllerLogLevel=warn \
@@ -121,7 +121,7 @@ fsm install \
     --fsm-namespace "$fsm_namespace" \
     --set=fsm.certificateProvider.kind=tresor \
     --set=fsm.image.registry=cybwan \
-    --set=fsm.image.tag=1.2.15 \
+    --set=fsm.image.tag=1.2.16 \
     --set=fsm.image.pullPolicy=Always \
     --set=fsm.sidecarLogLevel=warn \
     --set=fsm.controllerLogLevel=warn \
