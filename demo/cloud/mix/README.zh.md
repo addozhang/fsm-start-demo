@@ -30,7 +30,7 @@ fsm install \
     --fsm-namespace "$fsm_namespace" \
     --set=fsm.certificateProvider.kind=tresor \
     --set=fsm.image.registry=cybwan \
-    --set=fsm.image.tag=v1.2.1 \
+    --set=fsm.image.tag=1.2.1 \
     --set=fsm.image.pullPolicy=Always \
     --set=fsm.sidecar.sidecarLogLevel=warn \
     --set=fsm.controllerLogLevel=warn \
