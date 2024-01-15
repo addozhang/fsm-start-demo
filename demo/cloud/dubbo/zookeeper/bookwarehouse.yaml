@@ -10,7 +10,6 @@ spec:
   ports:
     - port: 20880
       name: bookwarehouse-dubbo-port
-      appProtocol: HTTP
   selector:
     app: bookwarehouse
 ---
