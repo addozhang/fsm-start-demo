@@ -1,0 +1,32 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookbuyer
+  labels:
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bookbuyer
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: bookbuyer
+        version: v1
+    spec:
+      containers:
+        - name: bookbuyer
+          image: addozhang/bookbuyer-dubbo:0.3
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 20880
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: 'dubbo,prod'
+            - name: IDENTITY
+              value: bookbuyer
+#            - name: DUBBO_REGISTRY_ADDRESS
+#              value: 'zookeeper.default'

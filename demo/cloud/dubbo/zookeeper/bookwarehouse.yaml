@@ -1,0 +1,32 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookwarehouse
+  labels:
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bookwarehouse
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: bookwarehouse
+        version: v1
+    spec:
+      containers:
+        - name: bookwarehouse
+          image: addozhang/bookwarehouse-dubbo:0.3
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 20880
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: 'dubbo,prod'
+            - name: IDENTITY
+              value: bookwarehouse
+#            - name: DUBBO_REGISTRY_ADDRESS
+#              value: 'zookeeper.default'
