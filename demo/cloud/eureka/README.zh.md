@@ -56,34 +56,43 @@ fsm install \
     --set fsm.featureFlags.enableValidateGRPCRouteHostnames=false \
     --set fsm.featureFlags.enableValidateTLSRouteHostnames=false \
     --set fsm.featureFlags.enableValidateGatewayListenerHostname=false \
+    --set fsm.featureFlags.enableGatewayProxyTag=true \
     --set=fsm.cloudConnector.eureka.enable=true \
-    --set=fsm.cloudConnector.eureka.deriveNamespace=eureka-derive \
+    --set=fsm.cloudConnector.eureka.deriveNamespace=derive-eureka \
     --set=fsm.cloudConnector.eureka.httpAddr=http://$eureka_svc_addr:8761/eureka \
     --set=fsm.cloudConnector.eureka.syncToK8S.enable=true \
     --set=fsm.cloudConnector.eureka.syncToK8S.passingOnly=false \
     --set=fsm.cloudConnector.eureka.syncToK8S.suffixMetadata=version \
-    --set=fsm.cloudConnector.eureka.syncToK8S.withGatewayAPI.enable=false \
+    --set=fsm.cloudConnector.eureka.syncToK8S.withGateway.enable=true \
     --set=fsm.cloudConnector.eureka.syncFromK8S.enable=true \
     --set "fsm.cloudConnector.eureka.syncFromK8S.denyK8sNamespaces={default,kube-system,fsm-system}" \
-    --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.enable=false \
-    --set=fsm.cloudConnector.eureka.syncFromK8S.withGatewayAPI.via=ClusterIP \
+    --set=fsm.cloudConnector.eureka.syncFromK8S.withGateway.enable=true \
     --set=fsm.cloudConnector.machine.enable=true \
-    --set=fsm.cloudConnector.machine.deriveNamespace=vm-derive \
+    --set=fsm.cloudConnector.machine.asInternalServices=false \
+    --set=fsm.cloudConnector.machine.deriveNamespace=derive-vm \
     --set=fsm.cloudConnector.machine.syncToK8S.enable=true \
-    --set=fsm.cloudConnector.machine.syncToK8S.withGatewayAPI.enable=false \
-    --set=fsm.cloudConnector.gateway.enable=true \
+    --set=fsm.cloudConnector.machine.syncToK8S.withGatewayEgress.enable=true \
+    --set=fsm.cloudConnector.gateway.ingress.ipSelector=ClusterIP \
+    --set=fsm.cloudConnector.gateway.ingress.httpPort=10080 \
+    --set=fsm.cloudConnector.gateway.egress.httpPort=10090 \
+    --set=fsm.cloudConnector.gateway.syncToFgw.enable=true \
     --set "fsm.cloudConnector.gateway.syncToFgw.denyK8sNamespaces={default,kube-system,fsm-system}" \
     --timeout=900s
 
 #用于承载转义的eureka k8s services 和 endpoints
-kubectl create namespace eureka-derive
-fsm namespace add eureka-derive
-kubectl patch namespace eureka-derive -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"eureka"}}}'  --type=merge
+kubectl create namespace derive-eureka
+fsm namespace add derive-eureka
+kubectl patch namespace derive-eureka -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"eureka"}}}'  --type=merge
 
 #用于承载转义的virtual machine k8s services 和 endpoints
-kubectl create namespace vm-derive
-fsm namespace add vm-derive
-kubectl patch namespace vm-derive -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"machine"}}}'  --type=merge
+kubectl create namespace derive-vm
+fsm namespace add derive-vm
+kubectl patch namespace derive-vm -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"machine"}}}'  --type=merge
+
+make eureka-deploy
+make deploy-bookwarehouse
+make eureka-port-forward
+make eureka-reg-services
 ```
 
 ## 部署FGW网关
@@ -100,8 +109,42 @@ spec:
   listeners:
     - protocol: HTTP
       port: 10080
-      name: http
+      name: ingress-proxy
+    - protocol: HTTP
+      port: 10090
+      name: egress-proxy
 EOF
+```
+
+## 登记虚拟机资源
+
+```bash
+kubectl apply -n derive-vm -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vm
+---
+kind: VirtualMachine
+apiVersion: machine.flomesh.io/v1alpha1
+metadata:
+  name: vm6
+spec:
+  serviceAccountName: vm
+  machineIP: 192.168.127.8
+  services:
+  - serviceName: bookwarehouse
+    port: 14001  
+  - serviceName: bookdemo
+    port: 10011
+EOF
+
+kubectl create namespace curl
+fsm namespace add curl
+
+kubectl apply -n curl -f https://raw.githubusercontent.com/cybwan/fsm-start-demo/main/demo/access-control/curl.yaml
+sleep 1
+kubectl wait --for=condition=ready pod -n curl -l app=curl --timeout=180s
 ```
 
 ## 4. Eureka集成测试
@@ -141,11 +184,11 @@ kind: AccessControl
 apiVersion: policy.flomesh.io/v1alpha1
 metadata:
   name: eureka
-  namespace: eureka-derive
+  namespace: derive-eureka
 spec:
   sources:
   - kind: Service
-    namespace: eureka-derive
+    namespace: derive-eureka
     name: eureka
 EOF
 ```
@@ -191,7 +234,7 @@ kubectl port-forward $STORE_V2_POD -n bookstore 8082:14001 --address 0.0.0.0 &
 #### 4.6.1 流量全部走bookstore-v1
 
 ```bash
-kubectl apply -n eureka-derive -f - <<EOF
+kubectl apply -n derive-eureka -f - <<EOF
 apiVersion: split.smi-spec.io/v1alpha4
 kind: TrafficSplit
 metadata:
@@ -209,7 +252,7 @@ EOF
 #### 4.6.2 流量全部走bookstore-v2
 
 ```bash
-kubectl apply -n eureka-derive -f - <<EOF
+kubectl apply -n derive-eureka -f - <<EOF
 apiVersion: split.smi-spec.io/v1alpha4
 kind: TrafficSplit
 metadata:
@@ -227,7 +270,7 @@ EOF
 #### 4.6.3 流量均分
 
 ```bash
-kubectl apply -n eureka-derive -f - <<EOF
+kubectl apply -n derive-eureka -f - <<EOF
 apiVersion: split.smi-spec.io/v1alpha4
 kind: TrafficSplit
 metadata:
@@ -239,55 +282,6 @@ spec:
     weight: 50
   - service: bookstore-v2
     weight: 50
-EOF
-```
-
-
-
-```bash
-export fsm_namespace=fsm-system
-export fsm_mesh_name=fsm
-
-fsm install \
-    --mesh-name "$fsm_mesh_name" \
-    --fsm-namespace "$fsm_namespace" \
-    --set=fsm.certificateProvider.kind=tresor \
-    --set=fsm.image.registry=localhost:5000/flomesh \
-    --set=fsm.image.tag=latest \
-    --set=fsm.image.pullPolicy=Always \
-    --set=fsm.sidecarLogLevel=debug \
-    --set=fsm.controllerLogLevel=warn \
-    --set=fsm.serviceAccessMode=mixed \
-    --set=clusterSet.region=LN \
-    --set=clusterSet.zone=DL \
-    --set=clusterSet.group=FLOMESH \
-    --set=clusterSet.name=LAB \
-    --timeout=900s
-
-kubectl create namespace curl
-fsm namespace add curl
-
-kubectl apply -n curl -f https://raw.githubusercontent.com/cybwan/fsm-start-demo/main/demo/access-control/curl.yaml
-sleep 1
-kubectl wait --for=condition=ready pod -n curl -l app=curl --timeout=180s
-
-kubectl apply -n vm-derive -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: vm
----
-kind: VirtualMachine
-apiVersion: machine.flomesh.io/v1alpha1
-metadata:
-  name: vm6
-spec:
-  serviceAccountName: vm
-  sidecarIP: 192.168.127.7
-  machineIP: 192.168.127.8
-  services:
-  - serviceName: weblogic
-    port: 10010    
 EOF
 ```
 
