@@ -1,17 +1,17 @@
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: bookwarehouse
-  namespace: bookwarehouse
-  labels:
-    app: bookwarehouse
-spec:
-  ports:
-    - port: 20880
-      name: tcp-dubbo-port
-  selector:
-    app: bookwarehouse
+#---
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: bookwarehouse
+#  namespace: bookwarehouse
+#  labels:
+#    app: bookwarehouse
+#spec:
+#  ports:
+#    - port: 20880
+#      name: tcp-dubbo-port
+#  selector:
+#    app: bookwarehouse
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -33,7 +33,7 @@ spec:
     spec:
       containers:
         - name: bookwarehouse
-          image: addozhang/bookwarehouse-dubbo:0.3
+          image: addozhang/bookwarehouse-dubbo:0.3.1
           imagePullPolicy: Always
           ports:
             - containerPort: 20880
