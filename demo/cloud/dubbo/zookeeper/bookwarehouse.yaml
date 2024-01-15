@@ -9,7 +9,7 @@ metadata:
 spec:
   ports:
     - port: 20880
-      name: bookwarehouse-dubbo-port
+      name: tcp-dubbo-port
   selector:
     app: bookwarehouse
 ---
