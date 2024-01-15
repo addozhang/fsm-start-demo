@@ -1,5 +1,18 @@
 # Consul & Eureka & Nacos & VM 服务融合测试
 
+## 1. 下载并安装 fsm cli
+
+```bash
+system=$(uname -s | tr [:upper:] [:lower:])
+arch=$(dpkg --print-architecture)
+release=v1.2.1
+curl -L https://github.com/cybwan/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
+./${system}-${arch}/fsm version
+cp ./${system}-${arch}/fsm /usr/local/bin/
+```
+
+## 2. 安装 fsm
+
 ```bash
 export fsm_namespace=fsm-system
 export fsm_mesh_name=fsm
@@ -16,8 +29,8 @@ fsm install \
     --mesh-name "$fsm_mesh_name" \
     --fsm-namespace "$fsm_namespace" \
     --set=fsm.certificateProvider.kind=tresor \
-    --set=fsm.image.registry=localhost:5000/flomesh \
-    --set=fsm.image.tag=latest \
+    --set=fsm.image.registry=cybwan \
+    --set=fsm.image.tag=v1.2.1 \
     --set=fsm.image.pullPolicy=Always \
     --set=fsm.sidecar.sidecarLogLevel=warn \
     --set=fsm.controllerLogLevel=warn \
