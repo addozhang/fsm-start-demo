@@ -1,4 +1,18 @@
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookbuyer
+  namespace: bookbuyer
+  labels:
+    app: bookbuyer
+spec:
+  ports:
+    - port: 20880
+      name: tcp-dubbo-port
+  selector:
+    app: bookbuyer
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
