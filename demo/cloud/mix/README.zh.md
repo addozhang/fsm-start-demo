@@ -136,10 +136,10 @@ spec:
     - protocol: HTTP
       port: 10090
       name: egrs-http
-    - protocol: GRPC
+    - protocol: HTTP
       port: 10180
       name: igrs-grpc
-    - protocol: GRPC
+    - protocol: HTTP
       port: 10190
       name: egrs-grpc
 EOF
