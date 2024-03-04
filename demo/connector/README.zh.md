@@ -454,3 +454,5 @@ kubectl wait --all --for=condition=ready pod -n bookwarehouse -l app=bookwarehou
 
 **Nacos http://127.0.0.1:8848/nacos**
 
+可以看到新增了bookwarehouse服务,该服务衍生于 k8s 服务.
+
