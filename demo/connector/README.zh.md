@@ -151,7 +151,7 @@ sleep 5
 kubectl wait --all --for=condition=ready pod -n $fsm_namespace -l app=fsm-gateway --timeout=180s
 ```
 
-## 6. 创建混合微服务架构连接器
+## 6. 创建混合架构微服务连接器
 
 ### 6.1 创建边际网关连接器
 
