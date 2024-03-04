@@ -1,0 +1,117 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookwarehouse
+  namespace: bookwarehouse
+  labels:
+    app: bookwarehouse
+spec:
+  ports:
+    - port: 14001
+      name: bookwarehouse-http-port
+      appProtocol: HTTP
+    - port: 9091
+      name: bookwarehouse-grpc-port
+      appProtocol: GRPC
+  selector:
+    app: bookwarehouse
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bookwarehouse-application-yml
+data:
+  application.yml: |
+    # 应用端口
+    server:
+      port: 14001
+    grpc:
+      server:
+        port: 9091
+    
+    logging:
+      level:
+        root: INFO
+        org.springframework.web.filter.CommonsRequestLoggingFilter: INFO
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: "health,info,prometheus"
+    
+    spring:
+      application:
+        # 应用名称
+        name: bookwarehouse
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookwarehouse
+  labels:
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bookwarehouse
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: bookwarehouse
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "14001"
+    spec:
+      containers:
+        - name: bookwarehouse
+          image: cybwan/springboot-demo:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 14001
+            - containerPort: 9091
+          env:
+            - name: IDENTITY
+              value: bookwarehouse
+            - name: EUREKA_INSTANCE_METADATAMAP_VERSION
+              value: v1
+            - name: JAVA_OPTS
+              value: -Xms256M -Xmx512M
+            - name: JAVA_TOOL_OPTIONS
+              value: -javaagent:./opentelemetry-javaagent.jar -Dotel.resource.attributes=service.name=bookwarehouse
+          command: ['java']
+          args: [
+            "-Dotel.traces.exporter=logging",
+            "-Dotel.metrics.exporter=none",
+            "-Dotel.propagators=tracecontext,baggage,b3multi",
+            "-jar",
+            "bookwarehouse.jar",
+          ]
+          volumeMounts:
+            - mountPath: /config
+              name: javacfg
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 14001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 14001
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: javacfg
+          configMap:
+            name: bookwarehouse-application-yml
+            items:
+              - key: "application.yml"
+                path: "application.yml"
