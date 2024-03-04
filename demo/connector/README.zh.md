@@ -435,7 +435,7 @@ spec:
 EOF
 ```
 
-#### 8. 部署 demo 服务
+## 8. 部署 demo 服务
 
 ```bash
 kubectl create namespace bookwarehouse
@@ -444,7 +444,7 @@ sleep 5
 kubectl wait --all --for=condition=ready pod -n bookwarehouse -l app=bookwarehouse --timeout=180s
 ```
 
-#### 9. 确认服务注册状态
+## 9. 确认服务注册状态
 
 **浏览器访问:**
 
