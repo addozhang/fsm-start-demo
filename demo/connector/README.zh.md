@@ -449,5 +449,8 @@ kubectl wait --all --for=condition=ready pod -n bookwarehouse -l app=bookwarehou
 **浏览器访问:**
 
 **Consul http://127.0.0.1:8500**
+
 **Eureka http://127.0.0.1:8761**
+
 **Nacos http://127.0.0.1:8848/nacos**
+
