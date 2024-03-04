@@ -61,12 +61,6 @@ export fsm_namespace=fsm-system
 export fsm_mesh_name=fsm
 export dns_svc_ip="$(kubectl get svc -n kube-system -l k8s-app=kube-dns -o jsonpath='{.items[0].spec.clusterIP}')"
 echo $dns_svc_ip
-export consul_svc_addr="$(kubectl get svc -n default --field-selector metadata.name=consul -o jsonpath='{.items[0].spec.clusterIP}')"
-echo $consul_svc_addr
-export eureka_svc_addr="$(kubectl get svc -n default --field-selector metadata.name=eureka -o jsonpath='{.items[0].spec.clusterIP}')"
-echo $eureka_svc_addr
-export nacos_svc_addr="$(kubectl get svc -n default --field-selector metadata.name=nacos -o jsonpath='{.items[0].spec.clusterIP}')"
-echo $nacos_svc_addr
 
 fsm install \
     --mesh-name "$fsm_mesh_name" \
@@ -186,6 +180,9 @@ kubectl wait --all --for=condition=ready pod -n $fsm_namespace -l flomesh.io/fsm
 ### 6.2 创建Consul微服务连接器
 
 ```bash
+export consul_svc_addr="$(kubectl get svc -n default --field-selector metadata.name=consul -o jsonpath='{.items[0].spec.clusterIP}')"
+echo $consul_svc_addr
+
 kubectl apply  -f - <<EOF
 kind: ConsulConnector
 apiVersion: connector.flomesh.io/v1alpha1
@@ -221,6 +218,9 @@ kubectl wait --all --for=condition=ready pod -n $fsm_namespace -l flomesh.io/fsm
 ### 6.3 创建Eureka微服务连接器
 
 ```bash
+export eureka_svc_addr="$(kubectl get svc -n default --field-selector metadata.name=eureka -o jsonpath='{.items[0].spec.clusterIP}')"
+echo $eureka_svc_addr
+
 kubectl apply  -f - <<EOF
 kind: EurekaConnector
 apiVersion: connector.flomesh.io/v1alpha1
@@ -258,6 +258,9 @@ kubectl wait --all --for=condition=ready pod -n $fsm_namespace -l flomesh.io/fsm
 ### 6.4 创建Nacos微服务连接器
 
 ```bash
+export nacos_svc_addr="$(kubectl get svc -n default --field-selector metadata.name=nacos -o jsonpath='{.items[0].spec.clusterIP}')"
+echo $nacos_svc_addr
+
 kubectl apply  -f - <<EOF
 kind: NacosConnector
 apiVersion: connector.flomesh.io/v1alpha1
