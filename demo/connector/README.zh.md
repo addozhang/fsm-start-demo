@@ -1,6 +1,6 @@
 
 
-# FSM Connector 混合微服务架构融合测试
+# FSM Connector 混合架构微服务融合测试
 
 ## 1. 下载并安装 fsm 命令行工具
 
