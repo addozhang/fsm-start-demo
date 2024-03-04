@@ -19,21 +19,39 @@ cp ./${system}-${arch}/fsm /usr/local/bin/
 
 ```bash
 kubectl apply -n default -f https://raw.githubusercontent.com/cybwan/fsm-start-demo/main/demo/connector/consul.yaml
+sleep 5
 kubectl wait --all --for=condition=ready pod -n default -l app=consul --timeout=180s
+
+export POD=$(kubectl get pods --selector app=consul --no-headers | grep 'Running' | awk 'NR==1{print $1}')
+kubectl port-forward "$POD" -n default 8500:8500 --address 0.0.0.0 &
+
+浏览器访问 http://127.0.0.1:8500
 ```
 
 ### 2.2 部署 Eureka 注册中心
 
 ```bash
 kubectl apply -n default -f https://raw.githubusercontent.com/cybwan/fsm-start-demo/main/demo/connector/eureka.yaml
+sleep 5
 kubectl wait --all --for=condition=ready pod -n default -l app=eureka --timeout=180s
+
+export POD=$(kubectl get pods --selector app=eureka --no-headers | grep 'Running' | awk 'NR==1{print $1}')
+kubectl port-forward "$POD" -n default 8761:8761 --address 0.0.0.0 &
+
+浏览器访问 http://127.0.0.1:8761
 ```
 
 ### 2.3 部署 Nacos 注册中心
 
 ```bash
 kubectl apply -n default -f https://raw.githubusercontent.com/cybwan/fsm-start-demo/main/demo/connector/nacos.yaml
+sleep 5
 kubectl wait --all --for=condition=ready pod -n default -l app=nacos --timeout=180s
+
+export POD=$(kubectl get pods --selector app=nacos --no-headers | grep 'Running' | awk 'NR==1{print $1}')
+kubectl port-forward "$POD" -n default 8848:8848 --address 0.0.0.0 &
+
+浏览器访问 http://127.0.0.1:8848/nacos
 ```
 
 ## 3. 安装 fsm
@@ -128,6 +146,9 @@ spec:
       port: 10190
       name: egrs-grpc
 EOF
+
+sleep 5
+kubectl wait --all --for=condition=ready pod -n $fsm_namespace -l app=fsm-gateway --timeout=180s
 ```
 
 ## 6. 创建混合微服务架构连接器
@@ -156,6 +177,10 @@ spec:
       - kube-system
       - fsm-system
 EOF
+
+export fsm_namespace=fsm-system
+sleep 5
+kubectl wait --all --for=condition=ready pod -n $fsm_namespace -l flomesh.io/fsm-connector=gateway --timeout=180s
 ```
 
 ### 6.2 创建Consul微服务连接器
@@ -187,6 +212,10 @@ spec:
       - bookwarehouse
     withGateway: true
 EOF
+
+export fsm_namespace=fsm-system
+sleep 5
+kubectl wait --all --for=condition=ready pod -n $fsm_namespace -l flomesh.io/fsm-connector=consul --timeout=180s
 ```
 
 ### 6.3 创建Eureka微服务连接器
@@ -220,6 +249,10 @@ spec:
       - bookwarehouse
     withGateway: true
 EOF
+
+export fsm_namespace=fsm-system
+sleep 5
+kubectl wait --all --for=condition=ready pod -n $fsm_namespace -l flomesh.io/fsm-connector=eureka --timeout=180s
 ```
 
 ### 6.4 创建Nacos微服务连接器
@@ -246,6 +279,10 @@ spec:
       - bookwarehouse
     withGateway: true
 EOF
+
+export fsm_namespace=fsm-system
+sleep 5
+kubectl wait --all --for=condition=ready pod -n $fsm_namespace -l flomesh.io/fsm-connector=nacos --timeout=180s
 ```
 
 ### 6.5 创建虚拟机微服务连接器
@@ -265,6 +302,10 @@ spec:
     clusterId: vm_cluster_1
     withGateway: true
 EOF
+
+export fsm_namespace=fsm-system
+sleep 5
+kubectl wait --all --for=condition=ready pod -n $fsm_namespace -l flomesh.io/fsm-connector=machine --timeout=180s
 ```
 
 #### 6.5.2 创建虚拟机集群 2 微服务连接器
@@ -282,6 +323,10 @@ spec:
     clusterId: vm_cluster_2
     withGateway: true
 EOF
+
+export fsm_namespace=fsm-system
+sleep 5
+kubectl wait --all --for=condition=ready pod -n $fsm_namespace -l flomesh.io/fsm-connector=machine --timeout=180s
 ```
 
 ## 7. 登记虚拟机微服务
@@ -390,3 +435,19 @@ spec:
 EOF
 ```
 
+#### 8. 部署 demo 服务
+
+```bash
+kubectl create namespace bookwarehouse
+kubectl apply -n bookwarehouse -f https://raw.githubusercontent.com/cybwan/fsm-start-demo/main/demo/connector/bookwarehouse.yaml
+sleep 5
+kubectl wait --all --for=condition=ready pod -n bookwarehouse -l app=bookwarehouse --timeout=180s
+```
+
+#### 9. 确认服务注册状态
+
+**浏览器访问:**
+
+**Consul http://127.0.0.1:8500**
+**Eureka http://127.0.0.1:8761**
+**Nacos http://127.0.0.1:8848/nacos**
