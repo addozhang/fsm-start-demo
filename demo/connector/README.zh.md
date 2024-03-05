@@ -198,7 +198,6 @@ spec:
     withGateway: true
   syncFromK8S:
     enable: true
-    consulK8STag: k8s
     consulNodeName: k8s-sync
     appendTags:
       - tag0
