@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos
+  labels:
+    app: nacos
+spec:
+  type: LoadBalancer
+  selector:
+    app: nacos
+  ports:
+    - port: 8848
+      targetPort: 8848
+      protocol: TCP
+      name: web
+    - port: 9848
+      targetPort: 9848
+      protocol: TCP
+      name: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nacos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nacos
+  template:
+    metadata:
+      labels:
+        app: nacos
+    spec:
+      containers:
+        - name: nacos
+          image: localhost:5000/nacos/nacos-server:v2.3.0-slim
+          ports:
+            - containerPort: 8848
+          env:
+            - name: MODE
+              value: "standalone"

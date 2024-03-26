@@ -1,0 +1,109 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nacos-bookstore-application-yml
+data:
+  application.yml: |
+    spring:
+      profiles:
+        default:
+          - "nacos"
+      application:
+        name: bookstore
+    logging:
+      level:
+        org.springframework.web.filter.CommonsRequestLoggingFilter: INFO
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: "health,info,prometheus"
+    dubbo:
+      enabled: false #disable dubbo bootstrap in profiles other than dubbo
+    ---
+    # Prod Profile Configuration
+    server:
+      port: 14001
+    spring:
+      config:
+        activate:
+          on-profile: nacos
+  application-nacos.yml: |
+    spring:
+      config:
+        activate:
+          on-profile: nacos
+      cloud:
+        nacos:
+          discovery:
+            server-addr: nacos.default.svc:8848
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookstore
+  labels:
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bookstore
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: bookstore
+        version: v1
+      annotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/path: "/actuator/prometheus"
+          prometheus.io/port: "14001"
+    spec:
+      containers:
+        - name: bookstore
+          image: localhost:5000/cybwan/springboot-demo:latest
+          ports:
+            - containerPort: 14001
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: 'nacos'
+            - name: IDENTITY
+              value: bookstore
+            - name: JAVA_OPTS
+              value: -Xms256M -Xmx512M
+            - name: JAVA_TOOL_OPTIONS
+              value: -javaagent:./opentelemetry-javaagent.jar -Dotel.resource.attributes=service.name=bookstore
+          command: ['java']
+          args: [
+            "-Dotel.traces.exporter=none",
+            "-Dotel.metrics.exporter=none",
+            "-Dotel.propagators=tracecontext,baggage,b3multi",
+            "-jar",
+            "bookstore-nacos.jar",
+          ]
+          volumeMounts:
+            - mountPath: /config
+              name: javacfg
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 14001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 14001
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: javacfg
+          configMap:
+            name: nacos-bookstore-application-yml
+            items:
+              - key: "application.yml"
+                path: "application.yml"
+              - key: "application-nacos.yml"
+                path: "application-nacos.yml"

@@ -1,0 +1,132 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: consul-bookbuyer-application-yml
+data:
+  application.yml: |
+    spring:
+      profiles:
+        default:
+          - "consul"
+      application:
+        name: bookbuyer
+    logging:
+      level:
+        org.springframework.web.filter.CommonsRequestLoggingFilter: INFO
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: "health,info,prometheus"
+    dubbo:
+      enabled: false #disable dubbo bootstrap in profiles other than dubbo
+    ---
+    # Prod Profile Configuration
+    server:
+      port: 14001
+    spring:
+      config:
+        activate:
+          on-profile: consul
+  application-consul.yml: |
+    spring:
+      cloud:
+        consul:
+          discovery:
+            instance-id: ${spring.application.name}:${random.value}
+            prefer-ip-address: true
+            healthCheckPath: /actuator/health
+            healthCheckInterval: 5s
+  bootstrap-consul.yml: |
+    spring:
+      cloud:
+        consul:
+          config:
+            enabled: false
+    ---
+    # Prod Profile Configuration
+    spring:
+      cloud:
+        consul:
+          host: consul.default.svc
+          port: 8500
+      zone: prod
+      config:
+        activate:
+          on-profile: consul
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookbuyer
+  labels:
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bookbuyer
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: bookbuyer
+        version: v1
+      annotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/path: "/actuator/prometheus"
+          prometheus.io/port: "14001"
+    spec:
+      containers:
+        - name: bookbuyer
+          image: localhost:5000/cybwan/springboot-demo:latest
+          ports:
+            - containerPort: 14001
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: 'consul'
+            - name: IDENTITY
+              value: bookbuyer
+            - name: SPRING_CLOUD_CONSUL_DISCOVERY_TAGS
+              value: "version=v1"
+            - name: EUREKA_INSTANCE_METADATAMAP_VERSION
+              value: v1
+            - name: JAVA_OPTS
+              value: -Xms256M -Xmx512M
+            - name: JAVA_TOOL_OPTIONS
+              value: -javaagent:./opentelemetry-javaagent.jar -Dotel.resource.attributes=service.name=bookbuyer
+          command: ['java']
+          args: [
+            "-Dotel.traces.exporter=none",
+            "-Dotel.metrics.exporter=none",
+            "-Dotel.propagators=tracecontext,baggage,b3multi",
+            "-jar",
+            "bookbuyer-consul.jar",
+          ]
+          volumeMounts:
+            - mountPath: /config
+              name: javacfg
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 14001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 14001
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: javacfg
+          configMap:
+            name: consul-bookbuyer-application-yml
+            items:
+              - key: "application.yml"
+                path: "application.yml"
+              - key: "application-consul.yml"
+                path: "application-consul.yml"
+              - key: "bootstrap-consul.yml"
+                path: "bootstrap-consul.yml"

@@ -5,7 +5,7 @@
 ```bash
 system=$(uname -s | tr [:upper:] [:lower:])
 arch=$(dpkg --print-architecture)
-release=v1.2.1
+release=v1.2.2
 curl -L https://github.com/cybwan/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
 ./${system}-${arch}/fsm version
 cp ./${system}-${arch}/fsm /usr/local/bin/
@@ -30,7 +30,7 @@ fsm install \
     --fsm-namespace "$fsm_namespace" \
     --set=fsm.certificateProvider.kind=tresor \
     --set=fsm.image.registry=cybwan \
-    --set=fsm.image.tag=1.2.1 \
+    --set=fsm.image.tag=1.2.2 \
     --set=fsm.image.pullPolicy=Always \
     --set=fsm.sidecar.sidecarLogLevel=warn \
     --set=fsm.controllerLogLevel=warn \
@@ -56,19 +56,19 @@ fsm install \
     --set=fsm.cloudConnector.consul.syncToK8S.enable=true \
     --set=fsm.cloudConnector.consul.syncToK8S.clusterId=consul_cluster_1 \
     --set=fsm.cloudConnector.consul.syncToK8S.suffixTag=version \
-    --set=fsm.cloudConnector.consul.syncToK8S.withGateway.enable=true \
+    --set=fsm.cloudConnector.consul.syncToK8S.withGateway.enable=false \
     --set=fsm.cloudConnector.consul.syncFromK8S.enable=true \
     --set fsm.cloudConnector.consul.syncFromK8S.appendTag[0]=tag0 \
     --set fsm.cloudConnector.consul.syncFromK8S.appendTag[1]=tag1 \
     --set "fsm.cloudConnector.consul.syncFromK8S.allowK8sNamespaces={derive-eureka,derive-nacos,bookwarehouse}" \
-    --set=fsm.cloudConnector.consul.syncFromK8S.withGateway.enable=true \
+    --set=fsm.cloudConnector.consul.syncFromK8S.withGateway.enable=false \
     --set=fsm.cloudConnector.eureka.enable=true \
     --set=fsm.cloudConnector.eureka.deriveNamespace=derive-eureka \
     --set=fsm.cloudConnector.eureka.httpAddr=http://$eureka_svc_addr:8761/eureka \
     --set=fsm.cloudConnector.eureka.syncToK8S.enable=true \
     --set=fsm.cloudConnector.eureka.syncToK8S.clusterId=eureka_cluster_1 \
     --set=fsm.cloudConnector.eureka.syncToK8S.suffixMetadata=version \
-    --set=fsm.cloudConnector.eureka.syncToK8S.withGateway.enable=true \
+    --set=fsm.cloudConnector.eureka.syncToK8S.withGateway.enable=false \
     --set=fsm.cloudConnector.eureka.syncFromK8S.enable=true \
     --set fsm.cloudConnector.eureka.syncFromK8S.appendMetadata[0].key=type \
     --set fsm.cloudConnector.eureka.syncFromK8S.appendMetadata[0].value=smart-gateway \
@@ -77,17 +77,17 @@ fsm install \
     --set fsm.cloudConnector.eureka.syncFromK8S.appendMetadata[2].key=zone \
     --set fsm.cloudConnector.eureka.syncFromK8S.appendMetadata[2].value=yinzhou \
     --set "fsm.cloudConnector.eureka.syncFromK8S.allowK8sNamespaces={derive-consul,derive-nacos,bookwarehouse}" \
-    --set=fsm.cloudConnector.eureka.syncFromK8S.withGateway.enable=true \
+    --set=fsm.cloudConnector.eureka.syncFromK8S.withGateway.enable=false \
     --set=fsm.cloudConnector.nacos.enable=true \
     --set=fsm.cloudConnector.nacos.deriveNamespace=derive-nacos \
     --set=fsm.cloudConnector.nacos.httpAddr=$nacos_svc_addr:8848 \
     --set=fsm.cloudConnector.nacos.syncToK8S.enable=true \
     --set=fsm.cloudConnector.nacos.syncToK8S.clusterId=nacos_cluster_1 \
     --set=fsm.cloudConnector.nacos.syncToK8S.suffixMetadata=version \
-    --set=fsm.cloudConnector.nacos.syncToK8S.withGateway.enable=true \
+    --set=fsm.cloudConnector.nacos.syncToK8S.withGateway.enable=false \
     --set=fsm.cloudConnector.nacos.syncFromK8S.enable=true \
     --set "fsm.cloudConnector.nacos.syncFromK8S.allowK8sNamespaces={derive-consul,derive-eureka,bookwarehouse}" \
-    --set=fsm.cloudConnector.nacos.syncFromK8S.withGateway.enable=true \
+    --set=fsm.cloudConnector.nacos.syncFromK8S.withGateway.enable=false \
     --set=fsm.cloudConnector.machine.enable=true \
     --set=fsm.cloudConnector.machine.connectorNameSuffix=vm-cluster1 \
     --set=fsm.cloudConnector.machine.asInternalServices=false \
@@ -97,10 +97,8 @@ fsm install \
     --set=fsm.cloudConnector.machine.syncToK8S.withGateway.enable=true \
     --set=fsm.cloudConnector.gateway.ingress.ipSelector=ExternalIP \
     --set=fsm.cloudConnector.gateway.ingress.httpPort=10080 \
-    --set=fsm.cloudConnector.gateway.ingress.grpcPort=10180 \
-    --set=fsm.cloudConnector.gateway.egress.ipSelector=ClusterIP \
+    --set=fsm.cloudConnector.gateway.egress.ipSelector=ExternalIP \
     --set=fsm.cloudConnector.gateway.egress.httpPort=10090 \
-    --set=fsm.cloudConnector.gateway.egress.grpcPort=10190 \
     --set=fsm.cloudConnector.gateway.syncToFgw.enable=true \
     --set "fsm.cloudConnector.gateway.syncToFgw.denyK8sNamespaces={default,kube-system,fsm-system}" \
     --timeout=900s
@@ -136,12 +134,6 @@ spec:
     - protocol: HTTP
       port: 10090
       name: egrs-http
-    - protocol: HTTP
-      port: 10180
-      name: igrs-grpc
-    - protocol: HTTP
-      port: 10190
-      name: egrs-grpc
 EOF
 
 kubectl apply -n derive-vm1 -f - <<EOF

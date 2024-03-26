@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: eureka
+  labels:
+    name: eureka
+spec:
+  type: LoadBalancer
+  selector:
+    app: eureka
+  ports:
+    - name: http
+      port: 8761
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eureka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eureka
+  template:
+    metadata:
+      labels:
+        app: eureka
+    spec:
+      containers:
+        - name: eureka
+          image: localhost:5000/flomesh/samples-discovery-server:latest
+          ports:
+            - containerPort: 8761
+          resources:
+            limits:
+              memory: 6G
