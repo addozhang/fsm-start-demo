@@ -71,6 +71,7 @@ nacos-port-forward:
 deploy-bookwarehouse: undeploy-bookwarehouse
 	kubectl delete namespace bookwarehouse --ignore-not-found
 	kubectl create namespace bookwarehouse
+	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add bookwarehouse; fi
 	kubectl apply -n bookwarehouse -f ./manifests/native/bookwarehouse.yaml
 	sleep 2
 	kubectl wait --all --for=condition=ready pod -n bookwarehouse -l app=bookwarehouse --timeout=180s
