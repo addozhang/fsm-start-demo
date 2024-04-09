@@ -87,7 +87,7 @@ spec:
               value: -javaagent:./opentelemetry-javaagent.jar -Dotel.resource.attributes=service.name=bookwarehouse
           command: ['java']
           args: [
-            "-Dotel.traces.exporter=logging",
+            "-Dotel.traces.exporter=none",
             "-Dotel.metrics.exporter=none",
             "-Dotel.propagators=tracecontext,baggage,b3multi",
             "-jar",
