@@ -25,18 +25,18 @@ cd fsm-start-demo
 ### **调用流程**
 
 ```html
-[c3 consul bookbuyer] 
--(sidecar)-> 
-[c3 fgw egress] 
---> 
-[c2 fgw ingress] 
--(sidecar)-> 
-[c2 consul bookstore] 
--(sidecar)-> 
-[c2 fgw egress] 
---> 
-[c1 fgw ingress] 
--(sidecar)-> 
+[c3 consul bookbuyer]
+-(sidecar)->
+[c3 fgw egress]
+-->
+[c2 fgw ingress]
+-(sidecar)->
+[c2 consul bookstore]
+-(sidecar)->
+[c2 fgw egress]
+-->
+[c1 fgw ingress]
+-(sidecar)->
 [c1 consul bookwarehouse]
 ```
 
@@ -45,18 +45,18 @@ cd fsm-start-demo
 ### **调用流程**
 
 ```html
-[c3 consul bookbuyer] 
--(sidecar)-> 
-[c3 fgw egress] 
---> 
-[c2 fgw ingress] 
--(sidecar)-> 
-[c2 consul bookstore] 
--(sidecar)-> 
-[c2 fgw egress] 
---> 
-[c1 fgw ingress] 
--(sidecar)-> 
+[c3 consul bookbuyer]
+-(sidecar)->
+[c3 fgw egress]
+-->
+[c2 fgw ingress]
+-(sidecar)->
+[c2 consul bookstore]
+-(sidecar)->
+[c2 fgw egress]
+-->
+[c1 fgw ingress]
+-(sidecar)->
 [c1 native bookwarehouse]
 ```
 
@@ -65,17 +65,17 @@ cd fsm-start-demo
 ### **调用流程**
 
 ```html
-[c3 nacos bookbuyer] 
--(sidecar)-> 
-[c3 fgw egress] 
---> 
-[c2 fgw ingress] 
--(sidecar)-> 
-[c2 eureka bookstore] 
--(sidecar)-> 
-[c2 fgw egress] 
---> 
-[c1 fgw ingress] 
--(sidecar)-> 
+[c3 nacos bookbuyer]
+-(sidecar)->
+[c3 fgw egress]
+-->
+[c2 fgw ingress]
+-(sidecar)->
+[c2 eureka bookstore]
+-(sidecar)->
+[c2 fgw egress]
+-->
+[c1 fgw ingress]
+-(sidecar)->
 [c1 consul bookwarehouse]
 ```
