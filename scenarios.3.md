@@ -1,4 +1,4 @@
-# 场景 Consul & Eureka & Nacos 跨集群混合微服务融合
+# 场景 Consul & Eureka & Nacos 跨集群混合架构微服务融合
 
 ## 1 部署 C1 C2 C3 三个集群
 
