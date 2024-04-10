@@ -22,6 +22,60 @@ cd fsm-start-demo
 
 ## 场景一: [Consul 跨集群微服务融合](scenarios.1.md)
 
+### **调用流程**
+
+```html
+[c3 consul bookbuyer] 
+-(sidecar)-> 
+[c3 fgw egress] 
+--> 
+[c2 fgw ingress] 
+-(sidecar)-> 
+[c2 consul bookstore] 
+-(sidecar)-> 
+[c2 fgw egress] 
+--> 
+[c1 fgw ingress] 
+-(sidecar)-> 
+[c1 consul bookwarehouse]
+```
+
 ## 场景二: [Consul & K8S 跨集群混合架构微服务融合](scenarios.2.md)
 
+### **调用流程**
+
+```html
+[c3 consul bookbuyer] 
+-(sidecar)-> 
+[c3 fgw egress] 
+--> 
+[c2 fgw ingress] 
+-(sidecar)-> 
+[c2 consul bookstore] 
+-(sidecar)-> 
+[c2 fgw egress] 
+--> 
+[c1 fgw ingress] 
+-(sidecar)-> 
+[c1 native bookwarehouse]
+```
+
 ## 场景三: [Consul & Eureka & Nacos 跨集群混合架构微服务融合](scenarios.3.md)
+
+### **调用流程**
+
+```html
+[c3 nacos bookbuyer] 
+-(sidecar)-> 
+[c3 fgw egress] 
+--> 
+[c2 fgw ingress] 
+-(sidecar)-> 
+[c2 eureka bookstore] 
+-(sidecar)-> 
+[c2 fgw egress] 
+--> 
+[c1 fgw ingress] 
+-(sidecar)-> 
+[c1 consul bookwarehouse]
+```
