@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
         - name: nacos
-          image: localhost:5000/nacos/nacos-server:v2.3.0-slim
+          image: nacos/nacos-server:v2.3.0-slim
           ports:
             - containerPort: 8848
           env:

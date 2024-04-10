@@ -51,7 +51,7 @@ do
   echo "Creating cluster '$K3D_CLUSTER_NAME'..."
   echo "------------------------------------------------------------"
 
-#if ! docker network ls --format "{{ .Name}}" | grep -q "^$K3D_CLUSTER_NAME"; then docker network create --driver=bridge --subnet=172.$subnet.0.0/16 $K3D_CLUSTER_NAME; fi
+if ! docker network ls --format "{{ .Name}}" | grep -q "^$K3D_NETWORK"; then docker network create --driver=bridge --subnet=172.22.0.0/16 $K3D_NETWORK; fi
 
   # create cluster
 k3d cluster create \

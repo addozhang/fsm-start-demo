@@ -71,7 +71,7 @@ spec:
     spec:
       containers:
         - name: bookwarehouse
-          image: localhost:5000/cybwan/springboot-demo:latest
+          image: cybwan/springboot-demo:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 14001

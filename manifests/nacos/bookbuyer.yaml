@@ -63,7 +63,7 @@ spec:
     spec:
       containers:
         - name: bookbuyer
-          image: localhost:5000/cybwan/springboot-demo:latest
+          image: cybwan/springboot-demo:latest
           ports:
             - containerPort: 14001
           env:

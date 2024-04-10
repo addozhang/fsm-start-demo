@@ -4,6 +4,10 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+CTR_REGISTRY="${CTR_REGISTRY:-flomesh}"
+CTR_TAG="${CTR_TAG:-1.2.3}"
+IMAGE_PULL_POLICY="${IMAGE_PULL_POLICY:-Always}"
+
 fsm_namespace="${fsm_namespace:-fsm-system}"
 fsm_mesh_name="${fsm_mesh_name:-fsm}"
 
@@ -15,10 +19,10 @@ clusters="${clusters:-c0}"
 fsm install \
     --mesh-name "$fsm_mesh_name" \
     --fsm-namespace "$fsm_namespace" \
-    --set=fsm.image.registry=localhost:5000/flomesh \
-    --set=fsm.image.tag=latest \
-    --set=fsm.image.pullPolicy=Always \
-    --set=fsm.sidecar.sidecarLogLevel=debug \
+    --set=fsm.image.registry="$CTR_REGISTRY" \
+    --set=fsm.image.tag="$CTR_TAG" \
+    --set=fsm.image.pullPolicy="$IMAGE_PULL_POLICY" \
+    --set=fsm.sidecar.sidecarLogLevel=warn \
     --set=fsm.controllerLogLevel=warn \
     --set=fsm.serviceAccessMode=mixed \
     --set=fsm.featureFlags.enableAutoDefaultRoute=true \

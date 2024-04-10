@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: eureka
-          image: localhost:5000/flomesh/samples-discovery-server:latest
+          image: flomesh/samples-discovery-server:latest
           ports:
             - containerPort: 8761
           resources:
