@@ -236,7 +236,8 @@ spec:
   asInternalServices: true
   syncToK8S:
     enable: true
-    withGateway: true
+    withGateway: 
+      enable: true
   syncFromK8S:
     enable: false
 EOF
@@ -259,8 +260,8 @@ spec:
     enable: false
   syncFromK8S:
     enable: true
-    withGateway: true
-    withGatewayMode: forward
+    withGateway: 
+      enable: true
     allowK8sNamespaces:
       - derive-consul
 EOF
@@ -350,7 +351,8 @@ spec:
   asInternalServices: true
   syncToK8S:
     enable: true
-    withGateway: true
+    withGateway: 
+      enable: true
   syncFromK8S:
     enable: false
 EOF
@@ -373,8 +375,8 @@ spec:
     enable: false
   syncFromK8S:
     enable: true
-    withGateway: true
-    withGatewayMode: forward
+    withGateway: 
+      enable: true
     allowK8sNamespaces:
       - derive-eureka
 EOF
@@ -464,7 +466,8 @@ spec:
   asInternalServices: true
   syncToK8S:
     enable: true
-    withGateway: true
+    withGateway: 
+      enable: true
   syncFromK8S:
     enable: false
 EOF

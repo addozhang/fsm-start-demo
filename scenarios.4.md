@@ -1,4 +1,4 @@
-# 场景 Consul 跨集群微服务融合
+# 场景 Consul & K8S 跨集群混合架构微服务融合
 
 ## 1 部署 C1 C2 C3 三个集群
 
@@ -21,39 +21,10 @@ kubecm switch k3d-C1
 fsm_cluster_name=C1 make deploy-fsm
 ```
 
-#### 2.1.2 部署 Consul 微服务
+#### 2.1.2 部署 K8S 微服务
 
 ```bash
-make consul-deploy
-
-PORT_FORWARD="8501:8500" make consul-port-forward &
-
-export c1_consul_cluster_ip="$(kubectl get svc -n default --field-selector metadata.name=consul -o jsonpath='{.items[0].spec.clusterIP}')"
-echo c1_consul_cluster_ip $c1_consul_cluster_ip
-
-export c1_consul_external_ip="$(kubectl get svc -n default --field-selector metadata.name=consul -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')"
-echo c1_consul_external_ip $c1_consul_external_ip
-
-export c1_consul_pod_ip="$(kubectl get pod -n default --selector app=consul -o jsonpath='{.items[0].status.podIP}')"
-echo c1_consul_pod_ip $c1_consul_pod_ip
-
-kubectl create namespace fsm-policy
-fsm namespace add fsm-policy
-
-kubectl apply -f - <<EOF
-kind: AccessControl
-apiVersion: policy.flomesh.io/v1alpha1
-metadata:
-  name: global
-  namespace: fsm-policy
-spec:
-  sources:
-  - kind: Service
-    namespace: default
-    name: consul
-EOF
-
-WITH_MESH=true make deploy-consul-bookwarehouse
+WITH_MESH=true make deploy-bookwarehouse
 ```
 
 ### 2.2 C2集群
@@ -180,7 +151,21 @@ EOF
 
 kubectl wait --all --for=condition=ready pod -n "$fsm_namespace" -l app=svclb-fsm-gateway-fsm-system-tcp --timeout=180s
 
-kubectl patch AccessControl -n fsm-policy global --type=json -p='[{"op": "add", "path": "/spec/sources/-", "value": {"kind":"Service","namespace":"fsm-system","name":"fsm-gateway-fsm-system-tcp"}}]'
+kubectl create namespace fsm-policy
+fsm namespace add fsm-policy
+
+kubectl apply -f - <<EOF
+kind: AccessControl
+apiVersion: policy.flomesh.io/v1alpha1
+metadata:
+  name: global
+  namespace: fsm-policy
+spec:
+  sources:
+  - kind: Service
+    namespace: fsm-system
+    name: fsm-gateway-fsm-system-tcp
+EOF
 
 export c1_fgw_cluster_ip="$(kubectl get svc -n $fsm_namespace --field-selector metadata.name=fsm-gateway-fsm-system-tcp -o jsonpath='{.items[0].spec.clusterIP}')"
 echo c1_fgw_cluster_ip $c1_fgw_cluster_ip
@@ -210,7 +195,7 @@ spec:
   syncToFgw:
     enable: true
     allowK8sNamespaces:
-      - derive-consul
+      - bookwarehouse
 EOF
 ```
 
@@ -222,28 +207,7 @@ fsm namespace add derive-consul
 kubectl patch namespace derive-consul -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"consul"}}}'  --type=merge
 ```
 
-#### 3.1.4 部署 consul connector(c1-consul-to-c1-derive-consul)
-
-```
-kubectl apply  -f - <<EOF
-kind: ConsulConnector
-apiVersion: connector.flomesh.io/v1alpha1
-metadata:
-  name: c1-consul-to-c1-derive-consul
-spec:
-  httpAddr: $c1_consul_cluster_ip:8500
-  deriveNamespace: derive-consul
-  asInternalServices: true
-  syncToK8S:
-    enable: true
-    withGateway: 
-      enable: true
-  syncFromK8S:
-    enable: false
-EOF
-```
-
-#### 3.1.5 部署 consul connector(c1-k8s-to-c2-consul)
+#### 3.1.4 部署 consul connector(c1-k8s-to-c2-consul)
 
 **c1 k8s微服务同步到c2 consul**
 
@@ -255,7 +219,7 @@ metadata:
   name: c1-k8s-to-c2-consul
 spec:
   httpAddr: $c2_consul_external_ip:8500
-  deriveNamespace: none
+  deriveNamespace: derive-consul
   syncToK8S:
     enable: false
   syncFromK8S:
@@ -263,7 +227,7 @@ spec:
     withGateway: 
       enable: true
     allowK8sNamespaces:
-      - derive-consul
+      - bookwarehouse
 EOF
 ```
 
@@ -353,6 +317,7 @@ spec:
     enable: true
     withGateway: 
       enable: true
+      multiGateways: false
   syncFromK8S:
     enable: false
 EOF
@@ -468,6 +433,7 @@ spec:
     enable: true
     withGateway: 
       enable: true
+      multiGateways: false
   syncFromK8S:
     enable: false
 EOF

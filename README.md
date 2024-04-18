@@ -7,7 +7,7 @@
 ```bash
 system=$(uname -s | tr [:upper:] [:lower:])
 arch=$(dpkg --print-architecture)
-release=v1.2.3
+release=v1.2.4
 curl -L https://github.com/flomesh-io/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
 ./${system}-${arch}/fsm version
 cp ./${system}-${arch}/fsm /usr/local/bin/
@@ -40,7 +40,7 @@ cd fsm-start-demo
 [c1 consul bookwarehouse]
 ```
 
-## 场景二: [Consul & K8S 跨集群混合架构微服务融合](scenarios.2.md)
+## 场景二: [Consul & K8S 跨集群混合架构微服务融合](scenarios.2.md)(多级 fgw)
 
 ### **调用流程**
 
@@ -79,3 +79,22 @@ cd fsm-start-demo
 -(sidecar)->
 [c1 consul bookwarehouse]
 ```
+
+## 场景四: [Consul & K8S 跨集群混合架构微服务融合](scenarios.4.md)(禁用多级 fgw)
+
+### **调用流程**
+
+```html
+[c3 consul bookbuyer]
+-(sidecar)->
+-->
+[c2 fgw ingress]
+-(sidecar)->
+[c2 consul bookstore]
+-(sidecar)->
+-->
+[c1 fgw ingress]
+-(sidecar)->
+[c1 native bookwarehouse]
+```
+
