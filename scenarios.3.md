@@ -68,7 +68,7 @@ kubecm switch k3d-C2
 fsm_cluster_name=C2 make deploy-fsm
 ```
 
-#### 2.2.2 部署 Consul 微服务
+#### 2.2.2 部署 Eureka 微服务
 
 ```bash
 make eureka-deploy
@@ -115,7 +115,7 @@ kubecm switch k3d-C3
 fsm_cluster_name=C3 make deploy-fsm
 ```
 
-#### 2.3.2 部署 Consul 微服务
+#### 2.3.2 部署 Nacos 微服务
 
 ```bash
 make nacos-deploy
