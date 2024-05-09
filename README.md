@@ -7,7 +7,7 @@
 ```bash
 system=$(uname -s | tr [:upper:] [:lower:])
 arch=$(dpkg --print-architecture)
-release=v1.2.4
+release=v1.2.3
 curl -L https://github.com/flomesh-io/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
 ./${system}-${arch}/fsm version
 cp ./${system}-${arch}/fsm /usr/local/bin/
@@ -98,3 +98,13 @@ cd fsm-start-demo
 [c1 native bookwarehouse]
 ```
 
+## 场景五: [Nacos 微服务整合](scenarios.5.md)
+
+### **调用流程**
+
+```html
+[c1 nacos curl]
+-(c1 nacos curl sidecar)->
+-(c1 nacos httpbin sidecar)->
+[c1 consul httpbin]
+```
