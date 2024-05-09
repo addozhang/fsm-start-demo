@@ -162,6 +162,24 @@ deploy-nacos-bookbuyer:
 	sleep 2
 	kubectl wait --all --for=condition=ready pod -n bookbuyer -l app=bookbuyer --timeout=180s
 
+.PHONY: deploy-nacos-httpbin
+deploy-nacos-httpbin:
+	kubectl delete namespace httpbin --ignore-not-found
+	kubectl create namespace httpbin
+	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add httpbin; fi
+	kubectl apply -n httpbin -f ./manifests/nacos/httpbin.yaml
+	sleep 2
+	kubectl wait --all --for=condition=ready pod -n httpbin -l app=httpbin --timeout=180s
+
+.PHONY: deploy-nacos-curl
+deploy-nacos-curl:
+	kubectl delete namespace curl --ignore-not-found
+	kubectl create namespace curl
+	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add curl; fi
+	kubectl apply -n curl -f ./manifests/nacos/curl.yaml
+	sleep 2
+	kubectl wait --all --for=condition=ready pod -n curl -l app=curl --timeout=180s
+
 port-forward-fsm-repo:
 	export PORT_FORWARD=$(PORT_FORWARD);\
 	export POD=$$(kubectl get pods --selector app=fsm-controller -n fsm-system --no-headers | grep 'Running' | awk 'NR==1{print $$1}');\
@@ -172,3 +190,9 @@ bookbuyer-port-forward:
 	export PORT_FORWARD=$(PORT_FORWARD);\
 	export POD=$$(kubectl get pods --selector app=bookbuyer -n bookbuyer --no-headers | grep 'Running' | awk 'NR==1{print $$1}');\
 	kubectl port-forward "$$POD" -n bookbuyer "$$PORT_FORWARD" --address 0.0.0.0
+
+.PHONY: curl-port-forward
+curl-port-forward:
+	export PORT_FORWARD=$(PORT_FORWARD);\
+	export POD=$$(kubectl get pods --selector app=curl -n curl --no-headers | grep 'Running' | awk 'NR==1{print $$1}');\
+	kubectl port-forward "$$POD" -n curl "$$PORT_FORWARD" --address 0.0.0.0

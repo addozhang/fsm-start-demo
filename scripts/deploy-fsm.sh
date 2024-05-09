@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 CTR_REGISTRY="${CTR_REGISTRY:-flomesh}"
-CTR_TAG="${CTR_TAG:-1.2.4}"
+CTR_TAG="${CTR_TAG:-1.2.5-alpha.4}"
 IMAGE_PULL_POLICY="${IMAGE_PULL_POLICY:-Always}"
 
 fsm_namespace="${fsm_namespace:-fsm-system}"
