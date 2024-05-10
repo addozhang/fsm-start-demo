@@ -38,6 +38,8 @@ data:
         nacos:
           discovery:
             server-addr: nacos.default.svc:8848
+            username: nacos
+            password: nacos
 ---
 apiVersion: apps/v1
 kind: Deployment

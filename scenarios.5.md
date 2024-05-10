@@ -24,7 +24,11 @@ fsm_cluster_name=C1 make deploy-fsm
 ```bash
 make nacos-deploy
 
+kubectl patch deployments -n default nacos --type=json -p='[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name":"NACOS_AUTH_ENABLE","value":"true"}},{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name":"NACOS_AUTH_TOKEN","value":"SecretKeyM1Z2WDc4dnVyZkQ3NmZMZjZ3RHRwZnJjNFROdkJOemEK"}},{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name":"NACOS_AUTH_IDENTITY_KEY","value":"mpYGXyu7"}},{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name":"NACOS_AUTH_IDENTITY_VALUE","value":"mpYGXyu7"}}]'
+
 PORT_FORWARD="8848:8848" make nacos-port-forward &
+
+curl -X POST '127.0.0.1:8848/nacos/v1/auth/login' -d 'username=nacos&password=nacos'
 
 export c1_nacos_cluster_ip="$(kubectl get svc -n default --field-selector metadata.name=nacos -o jsonpath='{.items[0].spec.clusterIP}')"
 echo c1_nacos_cluster_ip $c1_nacos_cluster_ip
@@ -52,65 +56,7 @@ spec:
 EOF
 ```
 
-### 2.3 部署 fgw
-
-```bash
-export fsm_namespace=fsm-system
-kubectl apply -n "$fsm_namespace" -f - <<EOF
-apiVersion: gateway.networking.k8s.io/v1beta1
-kind: Gateway
-metadata:
-  name: k8s-c1-fgw
-spec:
-  gatewayClassName: fsm-gateway-cls
-  listeners:
-    - protocol: HTTP
-      port: 10080
-      name: igrs-http
-    - protocol: HTTP
-      port: 10090
-      name: egrs-http
-EOF
-
-sleep 3
-
-kubectl wait --all --for=condition=ready pod -n "$fsm_namespace" -l app=svclb-fsm-gateway-fsm-system-tcp --timeout=180s
-
-kubectl patch AccessControl -n fsm-policy global --type=json -p='[{"op": "add", "path": "/spec/sources/-", "value": {"kind":"Service","namespace":"fsm-system","name":"fsm-gateway-fsm-system-tcp"}}]'
-
-export c1_fgw_cluster_ip="$(kubectl get svc -n $fsm_namespace --field-selector metadata.name=fsm-gateway-fsm-system-tcp -o jsonpath='{.items[0].spec.clusterIP}')"
-echo c1_fgw_cluster_ip $c1_fgw_cluster_ip
-
-export c1_fgw_external_ip="$(kubectl get svc -n $fsm_namespace --field-selector metadata.name=fsm-gateway-fsm-system-tcp -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')"
-echo c1_fgw_external_ip $c1_fgw_external_ip
-
-export c1_fgw_pod_ip="$(kubectl get pod -n $fsm_namespace --selector app=fsm-gateway -o jsonpath='{.items[0].status.podIP}')"
-echo c1_fgw_pod_ip $c1_fgw_pod_ip
-```
-
-### 2.4 部署 fgw connector
-
-```bash
-kubectl apply  -f - <<EOF
-kind: GatewayConnector
-apiVersion: connector.flomesh.io/v1alpha1
-metadata:
-  name: c1-fgw
-spec:
-  ingress:
-    ipSelector: ExternalIP
-    httpPort: 10080
-  egress:
-    ipSelector: ClusterIP
-    httpPort: 10090
-  syncToFgw:
-    enable: true
-    allowK8sNamespaces:
-      - derive-nacos
-EOF
-```
-
-### 2.5 创建 derive-nacos namespace
+### 2.3 创建 derive-nacos namespace
 
 ```bash
 kubectl create namespace derive-nacos
@@ -118,7 +64,7 @@ fsm namespace add derive-nacos
 kubectl patch namespace derive-nacos -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"nacos"}}}'  --type=merge
 ```
 
-### 2.6 部署 nacos connector(c1-nacos-to-c1-derive-nacos)
+### 2.4 部署 nacos connector(c1-nacos-to-c1-derive-nacos)
 
 ```
 kubectl apply  -f - <<EOF
@@ -127,6 +73,9 @@ apiVersion: connector.flomesh.io/v1alpha1
 metadata:
   name: c1-nacos-to-c1-derive-nacos
 spec:
+  auth:
+    username: nacos
+    password: nacos
   httpAddr: $c1_nacos_cluster_ip:8848
   deriveNamespace: derive-nacos
   asInternalServices: true
