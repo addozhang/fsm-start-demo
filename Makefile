@@ -45,6 +45,12 @@ nacos-deploy:
 	sleep 2
 	kubectl wait --all --for=condition=ready pod -n default -l app=nacos --timeout=180s
 
+.PHONY: nacos-auth-deploy
+nacos-auth-deploy:
+	kubectl apply -n default -f ./manifests/nacos-auth.yaml
+	sleep 2
+	kubectl wait --all --for=condition=ready pod -n default -l app=nacos --timeout=180s
+
 .PHONY: nacos-reboot
 nacos-reboot:
 	kubectl rollout restart deployment -n default nacos
