@@ -4,8 +4,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-CTR_REGISTRY="${CTR_REGISTRY:-flomesh}"
-CTR_TAG="${CTR_TAG:-1.2.5}"
+CTR_REGISTRY="${CTR_REGISTRY:-cybwan}"
+CTR_TAG="${CTR_TAG:-1.3.4-alpha.1}"
 IMAGE_PULL_POLICY="${IMAGE_PULL_POLICY:-Always}"
 
 fsm_namespace="${fsm_namespace:-fsm-system}"
@@ -22,6 +22,8 @@ fsm install \
     --set=fsm.image.registry="$CTR_REGISTRY" \
     --set=fsm.image.tag="$CTR_TAG" \
     --set=fsm.image.pullPolicy="$IMAGE_PULL_POLICY" \
+    --set=fsm.sidecar.image.registry="$CTR_REGISTRY" \
+    --set=fsm.repoServer.image.registry="$CTR_REGISTRY" \
     --set=fsm.sidecar.sidecarLogLevel=warn \
     --set=fsm.controllerLogLevel=warn \
     --set=fsm.serviceAccessMode=mixed \

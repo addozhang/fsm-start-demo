@@ -7,8 +7,8 @@
 ```bash
 system=$(uname -s | tr [:upper:] [:lower:])
 arch=$(dpkg --print-architecture)
-release=v1.2.3
-curl -L https://github.com/flomesh-io/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
+release=v1.3.4-alpha.1
+curl -L https://github.com/cybwan/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
 ./${system}-${arch}/fsm version
 cp ./${system}-${arch}/fsm /usr/local/bin/
 ```
@@ -108,3 +108,5 @@ cd fsm-start-demo
 -(c1 nacos httpbin sidecar)->
 [c1 consul httpbin]
 ```
+
+## 场景六: [Nacos 多集群HA微服务融合](scenarios.6.md)

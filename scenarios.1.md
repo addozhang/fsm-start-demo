@@ -163,19 +163,25 @@ kubecm switch k3d-C1
 ```bash
 export fsm_namespace=fsm-system
 kubectl apply -n "$fsm_namespace" -f - <<EOF
-apiVersion: gateway.networking.k8s.io/v1beta1
+apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: k8s-c1-fgw
 spec:
-  gatewayClassName: fsm-gateway-cls
+  gatewayClassName: fsm
   listeners:
     - protocol: HTTP
       port: 10080
       name: igrs-http
+      allowedRoutes:
+        namespaces:
+          from: All
     - protocol: HTTP
       port: 10090
       name: egrs-http
+      allowedRoutes:
+        namespaces:
+          from: All
 EOF
 
 kubectl wait --all --for=condition=ready pod -n "$fsm_namespace" -l app=svclb-fsm-gateway-fsm-system-tcp --timeout=180s
@@ -278,19 +284,25 @@ kubecm switch k3d-C2
 ```bash
 export fsm_namespace=fsm-system
 kubectl apply -n "$fsm_namespace" -f - <<EOF
-apiVersion: gateway.networking.k8s.io/v1beta1
+apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: k8s-c2-fgw
 spec:
-  gatewayClassName: fsm-gateway-cls
+  gatewayClassName: fsm
   listeners:
     - protocol: HTTP
       port: 10080
       name: igrs-http
+      allowedRoutes:
+        namespaces:
+          from: All
     - protocol: HTTP
       port: 10090
       name: egrs-http
+      allowedRoutes:
+        namespaces:
+          from: All
 EOF
 
 kubectl wait --all --for=condition=ready pod -n "$fsm_namespace" -l app=svclb-fsm-gateway-fsm-system-tcp --timeout=180s
@@ -393,19 +405,25 @@ kubecm switch k3d-C3
 ```bash
 export fsm_namespace=fsm-system
 kubectl apply -n "$fsm_namespace" -f - <<EOF
-apiVersion: gateway.networking.k8s.io/v1beta1
+apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: k8s-c3-fgw
 spec:
-  gatewayClassName: fsm-gateway-cls
+  gatewayClassName: fsm
   listeners:
     - protocol: HTTP
       port: 10080
       name: igrs-http
+      allowedRoutes:
+        namespaces:
+          from: All
     - protocol: HTTP
       port: 10090
       name: egrs-http
+      allowedRoutes:
+        namespaces:
+          from: All
 EOF
 
 kubectl wait --all --for=condition=ready pod -n "$fsm_namespace" -l app=svclb-fsm-gateway-fsm-system-tcp --timeout=180s
