@@ -22,8 +22,6 @@ fsm install \
     --set=fsm.image.registry="$CTR_REGISTRY" \
     --set=fsm.image.tag="$CTR_TAG" \
     --set=fsm.image.pullPolicy="$IMAGE_PULL_POLICY" \
-    --set=fsm.sidecar.image.registry="$CTR_REGISTRY" \
-    --set=fsm.repoServer.image.registry="$CTR_REGISTRY" \
     --set=fsm.sidecar.sidecarLogLevel=warn \
     --set=fsm.controllerLogLevel=warn \
     --set=fsm.serviceAccessMode=mixed \
