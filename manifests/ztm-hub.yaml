@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ztm-hub
+  labels:
+    app: ztm-hub
+spec:
+  type: LoadBalancer
+  selector:
+    app: ztm-hub
+  ports:
+    - port: 8888
+      targetPort: 8888
+      protocol: TCP
+      name: ztm-hub
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ztm-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ztm-hub
+  template:
+    metadata:
+      labels:
+        app: ztm-hub
+    spec:
+      containers:
+        - name: ztm-hub
+          image: flomesh/ztm:0.0.4
+          ports:
+            - containerPort: 8888
+          command: [ 'ztm' ]
+          args: [
+            "run",
+            "hub",
+            "--listen",
+            "0.0.0.0:8888",
+            "--ca",
+            "ztm-ca:9999",
+          ]

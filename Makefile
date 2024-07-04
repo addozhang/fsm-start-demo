@@ -17,188 +17,34 @@ k3d-reset:
 deploy-fsm:
 	$fsm_cluster_name=$(fsm_cluster_name) scripts/deploy-fsm.sh
 
-CONSUL_VERSION ?= 1.15.4
-
-.PHONY: consul-deploy
-consul-deploy:
-	kubectl apply -n default -f ./manifests/consul.$(CONSUL_VERSION).yaml
+.PHONY: hello-deploy
+hello-deploy:
+	kubectl apply -n default -f ./manifests/hello.yaml
 	sleep 2
-	kubectl wait --all --for=condition=ready pod -n default -l app=consul --timeout=180s
+	kubectl wait --all --for=condition=ready pod -n default -l app=hello --timeout=180s
 
-.PHONY: consul-reboot
-consul-reboot:
-	kubectl rollout restart deployment -n default consul
+.PHONY: hello-reboot
+hello-reboot:
+	kubectl rollout restart deployment -n default hello
 
-.PHONY: eureka-deploy
-eureka-deploy:
-	kubectl apply -n default -f ./manifests/eureka.yaml
+.PHONY: curl-deploy
+curl-deploy:
+	kubectl apply -n default -f ./manifests/curl.yaml
 	sleep 2
-	kubectl wait --all --for=condition=ready pod -n default -l app=eureka --timeout=180s
+	kubectl wait --all --for=condition=ready pod -n default -l app=curl --timeout=180s
 
-.PHONY: eureka-reboot
-eureka-reboot:
-	kubectl rollout restart deployment -n default eureka
+.PHONY: curl-reboot
+curl-reboot:
+	kubectl rollout restart deployment -n default curl
 
-.PHONY: nacos-deploy
-nacos-deploy:
-	kubectl apply -n default -f ./manifests/nacos.yaml
+.PHONY: ztm-ca-deploy
+ztm-ca-deploy:
+	kubectl apply -n default -f ./manifests/ztm-ca.yaml
 	sleep 2
-	kubectl wait --all --for=condition=ready pod -n default -l app=nacos --timeout=180s
+	kubectl wait --all --for=condition=ready pod -n default -l app=ztm-ca --timeout=180s
 
-.PHONY: nacos-auth-deploy
-nacos-auth-deploy:
-	kubectl apply -n default -f ./manifests/nacos-auth.yaml
+.PHONY: ztm-hub-deploy
+ztm-hub-deploy:
+	kubectl apply -n default -f ./manifests/ztm-hub.yaml
 	sleep 2
-	kubectl wait --all --for=condition=ready pod -n default -l app=nacos --timeout=180s
-
-.PHONY: nacos-reboot
-nacos-reboot:
-	kubectl rollout restart deployment -n default nacos
-
-.PHONY: consul-port-forward
-consul-port-forward:
-	export PORT_FORWARD=$(PORT_FORWARD);\
-	export POD=$$(kubectl get pods --selector app=consul -n default --no-headers | grep 'Running' | awk 'NR==1{print $$1}');\
-	kubectl port-forward "$$POD" -n default "$$PORT_FORWARD" --address 0.0.0.0
-
-.PHONY: eureka-port-forward
-eureka-port-forward:
-	export PORT_FORWARD=$(PORT_FORWARD);\
-	export POD=$$(kubectl get pods --selector app=eureka -n default --no-headers | grep 'Running' | awk 'NR==1{print $$1}');\
-	kubectl port-forward "$$POD" -n default "$$PORT_FORWARD" --address 0.0.0.0
-
-.PHONY: nacos-port-forward
-nacos-port-forward:
-	export PORT_FORWARD=$(PORT_FORWARD);\
-	export POD=$$(kubectl get pods --selector app=nacos -n default --no-headers | grep 'Running' | awk 'NR==1{print $$1}');\
-	kubectl port-forward "$$POD" -n default "$$PORT_FORWARD" --address 0.0.0.0
-
-.PHONY: deploy-bookwarehouse
-deploy-bookwarehouse: undeploy-bookwarehouse
-	kubectl delete namespace bookwarehouse --ignore-not-found
-	kubectl create namespace bookwarehouse
-	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add bookwarehouse; fi
-	kubectl apply -n bookwarehouse -f ./manifests/native/bookwarehouse.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n bookwarehouse -l app=bookwarehouse --timeout=180s
-
-.PHONY: undeploy-bookwarehouse
-undeploy-bookwarehouse:
-	kubectl delete -n bookwarehouse -f ./manifests/native/bookwarehouse.yaml --ignore-not-found
-
-
-.PHONY: deploy-consul-bookwarehouse
-deploy-consul-bookwarehouse:
-	kubectl delete namespace bookwarehouse --ignore-not-found
-	kubectl create namespace bookwarehouse
-	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add bookwarehouse; fi
-	kubectl apply -n bookwarehouse -f ./manifests/consul/bookwarehouse.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n bookwarehouse -l app=bookwarehouse --timeout=180s
-
-.PHONY: deploy-consul-bookstore
-deploy-consul-bookstore:
-	kubectl delete namespace bookstore --ignore-not-found
-	kubectl create namespace bookstore
-	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add bookstore; fi
-	kubectl apply -n bookstore -f ./manifests/consul/bookstore.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n bookstore -l app=bookstore --timeout=180s
-
-.PHONY: deploy-consul-bookbuyer
-deploy-consul-bookbuyer:
-	kubectl delete namespace bookbuyer --ignore-not-found
-	kubectl create namespace bookbuyer
-	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add bookbuyer; fi
-	kubectl apply -n bookbuyer -f ./manifests/consul/bookbuyer.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n bookbuyer -l app=bookbuyer --timeout=180s
-
-.PHONY: deploy-eureka-bookwarehouse
-deploy-eureka-bookwarehouse:
-	kubectl delete namespace bookwarehouse --ignore-not-found
-	kubectl create namespace bookwarehouse
-	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add bookwarehouse; fi
-	kubectl apply -n bookwarehouse -f ./manifests/eureka/bookwarehouse.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n bookwarehouse -l app=bookwarehouse --timeout=180s
-
-.PHONY: deploy-eureka-bookstore
-deploy-eureka-bookstore:
-	kubectl delete namespace bookstore --ignore-not-found
-	kubectl create namespace bookstore
-	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add bookstore; fi
-	kubectl apply -n bookstore -f ./manifests/eureka/bookstore.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n bookstore -l app=bookstore --timeout=180s
-
-.PHONY: deploy-eureka-bookbuyer
-deploy-eureka-bookbuyer:
-	kubectl delete namespace bookbuyer --ignore-not-found
-	kubectl create namespace bookbuyer
-	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add bookbuyer; fi
-	kubectl apply -n bookbuyer -f ./manifests/eureka/bookbuyer.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n bookbuyer -l app=bookbuyer --timeout=180s
-
-.PHONY: deploy-nacos-bookwarehouse
-deploy-nacos-bookwarehouse:
-	kubectl delete namespace bookwarehouse --ignore-not-found
-	kubectl create namespace bookwarehouse
-	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add bookwarehouse; fi
-	kubectl apply -n bookwarehouse -f ./manifests/nacos/bookwarehouse.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n bookwarehouse -l app=bookwarehouse --timeout=180s
-
-.PHONY: deploy-nacos-bookstore
-deploy-nacos-bookstore:
-	kubectl delete namespace bookstore --ignore-not-found
-	kubectl create namespace bookstore
-	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add bookstore; fi
-	kubectl apply -n bookstore -f ./manifests/nacos/bookstore.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n bookstore -l app=bookstore --timeout=180s
-
-.PHONY: deploy-nacos-bookbuyer
-deploy-nacos-bookbuyer:
-	kubectl delete namespace bookbuyer --ignore-not-found
-	kubectl create namespace bookbuyer
-	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add bookbuyer; fi
-	kubectl apply -n bookbuyer -f ./manifests/nacos/bookbuyer.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n bookbuyer -l app=bookbuyer --timeout=180s
-
-.PHONY: deploy-nacos-httpbin
-deploy-nacos-httpbin:
-	kubectl delete namespace httpbin --ignore-not-found
-	kubectl create namespace httpbin
-	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add httpbin; fi
-	kubectl apply -n httpbin -f ./manifests/nacos/httpbin.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n httpbin -l app=httpbin --timeout=180s
-
-.PHONY: deploy-nacos-curl
-deploy-nacos-curl:
-	kubectl delete namespace curl --ignore-not-found
-	kubectl create namespace curl
-	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add curl; fi
-	kubectl apply -n curl -f ./manifests/nacos/curl.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n curl -l app=curl --timeout=180s
-
-port-forward-fsm-repo:
-	export PORT_FORWARD=$(PORT_FORWARD);\
-	export POD=$$(kubectl get pods --selector app=fsm-controller -n fsm-system --no-headers | grep 'Running' | awk 'NR==1{print $$1}');\
-	kubectl port-forward "$$POD" -n fsm-system "$$PORT_FORWARD" --address 0.0.0.0
-
-.PHONY: bookbuyer-port-forward
-bookbuyer-port-forward:
-	export PORT_FORWARD=$(PORT_FORWARD);\
-	export POD=$$(kubectl get pods --selector app=bookbuyer -n bookbuyer --no-headers | grep 'Running' | awk 'NR==1{print $$1}');\
-	kubectl port-forward "$$POD" -n bookbuyer "$$PORT_FORWARD" --address 0.0.0.0
-
-.PHONY: curl-port-forward
-curl-port-forward:
-	export PORT_FORWARD=$(PORT_FORWARD);\
-	export POD=$$(kubectl get pods --selector app=curl -n curl --no-headers | grep 'Running' | awk 'NR==1{print $$1}');\
-	kubectl port-forward "$$POD" -n curl "$$PORT_FORWARD" --address 0.0.0.0
+	kubectl wait --all --for=condition=ready pod -n default -l app=ztm-hub --timeout=180s

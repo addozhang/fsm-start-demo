@@ -1,4 +1,4 @@
-# 场景 Consul 跨集群微服务融合
+# 场景 基于 ZTM 跨集群微服务融合
 
 ## 1 部署 C1 C2 C3 三个集群
 
@@ -15,45 +15,35 @@ make k3d-up
 kubecm switch k3d-C1
 ```
 
-#### 2.1.1 部署 FSM Mesh
+#### 2.1.1 部署 ZTM CA 服务
 
 ```bash
-fsm_cluster_name=C1 make deploy-fsm
+make ztm-ca-deploy
+
+export ztm_ca_external_ip="$(kubectl get svc -n default --field-selector metadata.name=ztm-ca -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')"
+echo ztm_ca_external_ip $ztm_ca_external_ip
+
+export ztm_ca_pod="$(kubectl get pod -n default --selector app=ztm-ca -o jsonpath='{.items[0].metadata.name}')"
+echo ztm_ca_pod $ztm_ca_pod
 ```
 
-#### 2.1.2 部署 Consul 微服务
+#### 2.1.2 部署 ZTM HUB 服务
 
 ```bash
-make consul-deploy
+make ztm-hub-deploy
 
-PORT_FORWARD="8501:8500" make consul-port-forward &
+export ztm_hub_external_ip="$(kubectl get svc -n default --field-selector metadata.name=ztm-hub -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')"
+echo ztm_hub_external_ip $ztm_hub_external_ip
 
-export c1_consul_cluster_ip="$(kubectl get svc -n default --field-selector metadata.name=consul -o jsonpath='{.items[0].spec.clusterIP}')"
-echo c1_consul_cluster_ip $c1_consul_cluster_ip
+export ztm_hub_pod="$(kubectl get pod -n default --selector app=ztm-hub -o jsonpath='{.items[0].metadata.name}')"
+echo ztm_hub_pod $ztm_hub_pod
+```
 
-export c1_consul_external_ip="$(kubectl get svc -n default --field-selector metadata.name=consul -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')"
-echo c1_consul_external_ip $c1_consul_external_ip
+#### 2.1.3 创建 ZTM 用户
 
-export c1_consul_pod_ip="$(kubectl get pod -n default --selector app=consul -o jsonpath='{.items[0].status.podIP}')"
-echo c1_consul_pod_ip $c1_consul_pod_ip
-
-kubectl create namespace fsm-policy
-fsm namespace add fsm-policy
-
-kubectl apply -f - <<EOF
-kind: AccessControl
-apiVersion: policy.flomesh.io/v1alpha1
-metadata:
-  name: global
-  namespace: fsm-policy
-spec:
-  sources:
-  - kind: Service
-    namespace: default
-    name: consul
-EOF
-
-WITH_MESH=true make deploy-consul-bookwarehouse
+```bash
+kubectl exec -n default $ztm_ca_pod -- ztm evict fsm
+kubectl exec -n default $ztm_ca_pod -- ztm invite fsm -b $ztm_ca_external_ip:8888 > /tmp/fsm.perm.json
 ```
 
 ### 2.2 C2集群
@@ -62,45 +52,54 @@ WITH_MESH=true make deploy-consul-bookwarehouse
 kubecm switch k3d-C2
 ```
 
-#### 2.2.1 部署 FSM Mesh
+#### 2.2.1 部署 curl & hello 服务
+
+```bash
+make hello-deploy
+
+export c2_hello_pod_ip="$(kubectl get pod -n default --selector app=hello -o jsonpath='{.items[0].status.podIP}')"
+echo c2_hello_pod_ip $c2_hello_pod_ip
+
+export c2_hello_svc_port="$(kubectl get -n default svc hello -o jsonpath='{.spec.ports[0].port}')"
+echo c2_hello_svc_port $c2_hello_svc_port
+
+make curl-deploy
+
+export c2_curl_pod="$(kubectl get pod -n default --selector app=curl -o jsonpath='{.items[0].metadata.name}')"
+echo c2_curl_pod $c2_curl_pod
+
+kubectl exec $c2_curl_pod -n default -- curl -s http://hello.default:14001
+```
+
+#### 2.2.2 部署 FSM Mesh
 
 ```bash
 fsm_cluster_name=C2 make deploy-fsm
 ```
 
-#### 2.2.2 部署 Consul 微服务
+#### 2.2.3 创建 ZTM Agent
 
 ```bash
-make consul-deploy
-
-PORT_FORWARD="8502:8500" make consul-port-forward &
-
-export c2_consul_cluster_ip="$(kubectl get svc -n default --field-selector metadata.name=consul -o jsonpath='{.items[0].spec.clusterIP}')"
-echo c2_consul_cluster_ip $c2_consul_cluster_ip
-
-export c2_consul_external_ip="$(kubectl get svc -n default --field-selector metadata.name=consul -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')"
-echo c2_consul_external_ip $c2_consul_external_ip
-
-export c2_consul_pod_ip="$(kubectl get pod -n default --selector app=consul -o jsonpath='{.items[0].status.podIP}')"
-echo c2_consul_pod_ip $c2_consul_pod_ip
-
-kubectl create namespace fsm-policy
-fsm namespace add fsm-policy
-
-kubectl apply -f - <<EOF
-kind: AccessControl
-apiVersion: policy.flomesh.io/v1alpha1
+kubectl apply  -f - <<EOF
+kind: Agent
+apiVersion: ztm.flomesh.io/v1alpha1
 metadata:
-  name: global
-  namespace: fsm-policy
+  name: c2-agent
 spec:
-  sources:
-  - kind: Service
-    namespace: default
-    name: consul
+  permit:
+    bootstraps: $(cat /tmp/fsm.perm.json | jq .bootstraps)
+    ca: $(cat /tmp/fsm.perm.json | jq .ca)
+    agent:
+      privateKey: $(cat /tmp/fsm.perm.json | jq .agent.privateKey)
+      certificate: $(cat /tmp/fsm.perm.json | jq .agent.certificate)
+  joinMeshes:
+  - meshName: k8s
+    serviceExports:
+    - protocol: tcp
+      name: hello
+      ip: $c2_hello_pod_ip
+      port: $c2_hello_svc_port
 EOF
-
-WITH_MESH=true make deploy-consul-bookstore
 ```
 
 ### 2.3 C3集群
@@ -109,398 +108,88 @@ WITH_MESH=true make deploy-consul-bookstore
 kubecm switch k3d-C3
 ```
 
-#### 2.3.1 部署 FSM Mesh
+#### 2.3.1 部署 curl 服务
+
+```bash
+make curl-deploy
+
+export c3_curl_pod="$(kubectl get pod -n default --selector app=curl -o jsonpath='{.items[0].metadata.name}')"
+echo c3_curl_pod $c3_curl_pod
+```
+
+#### 2.3.2 部署 FSM Mesh
 
 ```bash
 fsm_cluster_name=C3 make deploy-fsm
 ```
 
-#### 2.3.2 部署 Consul 微服务
-
-```bash
-make consul-deploy
-
-PORT_FORWARD="8503:8500" make consul-port-forward &
-
-export c3_consul_cluster_ip="$(kubectl get svc -n default --field-selector metadata.name=consul -o jsonpath='{.items[0].spec.clusterIP}')"
-echo c3_consul_cluster_ip $c3_consul_cluster_ip
-
-export c3_consul_external_ip="$(kubectl get svc -n default --field-selector metadata.name=consul -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')"
-echo c3_consul_external_ip $c3_consul_external_ip
-
-export c3_consul_pod_ip="$(kubectl get pod -n default --selector app=consul -o jsonpath='{.items[0].status.podIP}')"
-echo c3_consul_pod_ip $c3_consul_pod_ip
-
-kubectl create namespace fsm-policy
-fsm namespace add fsm-policy
-
-kubectl apply -f - <<EOF
-kind: AccessControl
-apiVersion: policy.flomesh.io/v1alpha1
-metadata:
-  name: global
-  namespace: fsm-policy
-spec:
-  sources:
-  - kind: Service
-    namespace: default
-    name: consul
-EOF
-
-WITH_MESH=true make deploy-consul-bookbuyer
-```
-
-## 3 微服务融合
-
-### 3.1 C1 集群
-
-```bash
-kubecm switch k3d-C1
-```
-
-#### 3.1.1 部署 fgw
-
-```bash
-export fsm_namespace=fsm-system
-kubectl apply -n "$fsm_namespace" -f - <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: k8s-c1-fgw
-spec:
-  gatewayClassName: fsm
-  listeners:
-    - protocol: HTTP
-      port: 10080
-      name: igrs-http
-      allowedRoutes:
-        namespaces:
-          from: All
-    - protocol: HTTP
-      port: 10090
-      name: egrs-http
-      allowedRoutes:
-        namespaces:
-          from: All
-EOF
-
-kubectl wait --all --for=condition=ready pod -n "$fsm_namespace" -l app=svclb-fsm-gateway-fsm-system-tcp --timeout=180s
-
-kubectl patch AccessControl -n fsm-policy global --type=json -p='[{"op": "add", "path": "/spec/sources/-", "value": {"kind":"Service","namespace":"fsm-system","name":"fsm-gateway-fsm-system-tcp"}}]'
-
-export c1_fgw_cluster_ip="$(kubectl get svc -n $fsm_namespace --field-selector metadata.name=fsm-gateway-fsm-system-tcp -o jsonpath='{.items[0].spec.clusterIP}')"
-echo c1_fgw_cluster_ip $c1_fgw_cluster_ip
-
-export c1_fgw_external_ip="$(kubectl get svc -n $fsm_namespace --field-selector metadata.name=fsm-gateway-fsm-system-tcp -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')"
-echo c1_fgw_external_ip $c1_fgw_external_ip
-
-export c1_fgw_pod_ip="$(kubectl get pod -n $fsm_namespace --selector app=fsm-gateway -o jsonpath='{.items[0].status.podIP}')"
-echo c1_fgw_pod_ip $c1_fgw_pod_ip
-```
-
-#### 3.1.2 部署 fgw connector
+#### 2.3.3 创建 ZTM Agent
 
 ```bash
 kubectl apply  -f - <<EOF
-kind: GatewayConnector
-apiVersion: connector.flomesh.io/v1alpha1
+kind: Agent
+apiVersion: ztm.flomesh.io/v1alpha1
 metadata:
-  name: c1-fgw
+  name: c3-agent
 spec:
-  ingress:
-    ipSelector: ExternalIP
-    httpPort: 10080
-  egress:
-    ipSelector: ClusterIP
-    httpPort: 10090
-  syncToFgw:
-    enable: true
-    allowK8sNamespaces:
-      - derive-consul
+  permit:
+    bootstraps: $(cat /tmp/fsm.perm.json | jq .bootstraps)
+    ca: $(cat /tmp/fsm.perm.json | jq .ca)
+    agent:
+      privateKey: $(cat /tmp/fsm.perm.json | jq .agent.privateKey)
+      certificate: $(cat /tmp/fsm.perm.json | jq .agent.certificate)
+  joinMeshes:
+  - meshName: k8s
+    serviceImports:
+    - protocol: tcp
+      name: hello
+      ip: 0.0.0.0
+      port: $c2_hello_svc_port
 EOF
 ```
 
-#### 3.1.3 创建 derive-consul namespace
+#### 2.3.4 创建 hello 服务
 
 ```bash
-kubectl create namespace derive-consul
-fsm namespace add derive-consul
-kubectl patch namespace derive-consul -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"consul"}}}'  --type=merge
-```
+export c3_ztm_agent_pod_ip="$(kubectl get pod -n fsm-system --selector app=fsm-ztmagent-c3-agent -o jsonpath='{.items[0].status.podIP}')"
+echo c3_ztm_agent_pod_ip $c3_ztm_agent_pod_ip
 
-#### 3.1.4 部署 consul connector(c1-consul-to-c1-derive-consul)
-
-```
 kubectl apply  -f - <<EOF
-kind: ConsulConnector
-apiVersion: connector.flomesh.io/v1alpha1
+apiVersion: v1
+kind: Service
 metadata:
-  name: c1-consul-to-c1-derive-consul
+  name: hello
 spec:
-  httpAddr: $c1_consul_cluster_ip:8500
-  deriveNamespace: derive-consul
-  asInternalServices: true
-  syncToK8S:
-    enable: true
-    withGateway: 
-      enable: true
-  syncFromK8S:
-    enable: false
+  clusterIP: None
+  ports:
+    - name: http
+      port: $c2_hello_svc_port
+      targetPort: $c2_hello_svc_port
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: external-hello-1
+  labels:
+    kubernetes.io/service-name: hello
+addressType: IPv4
+ports:
+  - name: ''
+    appProtocol: http
+    protocol: TCP
+    port: $c2_hello_svc_port
+endpoints:
+  - addresses:
+      - $c3_ztm_agent_pod_ip
 EOF
 ```
 
-#### 3.1.5 部署 consul connector(c1-k8s-to-c2-consul)
-
-**c1 k8s微服务同步到c2 consul**
-
-```
-kubectl apply  -f - <<EOF
-kind: ConsulConnector
-apiVersion: connector.flomesh.io/v1alpha1
-metadata:
-  name: c1-k8s-to-c2-consul
-spec:
-  httpAddr: $c2_consul_external_ip:8500
-  deriveNamespace: none
-  syncToK8S:
-    enable: false
-  syncFromK8S:
-    enable: true
-    withGateway: 
-      enable: true
-    allowK8sNamespaces:
-      - derive-consul
-EOF
-```
-
-### 3.2 C2 集群
+#### 2.3.5 测试 hello 服务
 
 ```bash
-kubecm switch k3d-C2
-```
+kubectl exec $c3_curl_pod -n default -- curl -s http://$c3_ztm_agent_pod_ip:$c2_hello_svc_port
 
-#### 3.2.1 部署 fgw
-
-```bash
-export fsm_namespace=fsm-system
-kubectl apply -n "$fsm_namespace" -f - <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: k8s-c2-fgw
-spec:
-  gatewayClassName: fsm
-  listeners:
-    - protocol: HTTP
-      port: 10080
-      name: igrs-http
-      allowedRoutes:
-        namespaces:
-          from: All
-    - protocol: HTTP
-      port: 10090
-      name: egrs-http
-      allowedRoutes:
-        namespaces:
-          from: All
-EOF
-
-kubectl wait --all --for=condition=ready pod -n "$fsm_namespace" -l app=svclb-fsm-gateway-fsm-system-tcp --timeout=180s
-
-kubectl patch AccessControl -n fsm-policy global --type=json -p='[{"op": "add", "path": "/spec/sources/-", "value": {"kind":"Service","namespace":"fsm-system","name":"fsm-gateway-fsm-system-tcp"}}]'
-
-export c2_fgw_cluster_ip="$(kubectl get svc -n $fsm_namespace --field-selector metadata.name=fsm-gateway-fsm-system-tcp -o jsonpath='{.items[0].spec.clusterIP}')"
-echo c2_fgw_cluster_ip $c2_fgw_cluster_ip
-
-export c2_fgw_external_ip="$(kubectl get svc -n $fsm_namespace --field-selector metadata.name=fsm-gateway-fsm-system-tcp -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')"
-echo c2_fgw_external_ip $c2_fgw_external_ip
-
-export c2_fgw_pod_ip="$(kubectl get pod -n $fsm_namespace --selector app=fsm-gateway -o jsonpath='{.items[0].status.podIP}')"
-echo c2_fgw_pod_ip $c2_fgw_pod_ip
-```
-
-#### 3.2.2 部署 fgw connector
-
-```bash
-kubectl apply  -f - <<EOF
-kind: GatewayConnector
-apiVersion: connector.flomesh.io/v1alpha1
-metadata:
-  name: c2-fgw
-spec:
-  ingress:
-    ipSelector: ExternalIP
-    httpPort: 10080
-  egress:
-    ipSelector: ClusterIP
-    httpPort: 10090
-  syncToFgw:
-    enable: true
-    allowK8sNamespaces:
-      - derive-consul
-EOF
-```
-
-#### 3.2.3 创建 derive-consul namespace
-
-```bash
-kubectl create namespace derive-consul
-fsm namespace add derive-consul
-kubectl patch namespace derive-consul -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"consul"}}}'  --type=merge
-```
-
-#### 3.2.4 部署 consul connector(c2-consul-to-c2-derive-consul)
-
-```
-kubectl apply  -f - <<EOF
-kind: ConsulConnector
-apiVersion: connector.flomesh.io/v1alpha1
-metadata:
-  name: c2-consul-to-c2-derive-consul
-spec:
-  httpAddr: $c2_consul_cluster_ip:8500
-  deriveNamespace: derive-consul
-  asInternalServices: true
-  syncToK8S:
-    enable: true
-    withGateway: 
-      enable: true
-  syncFromK8S:
-    enable: false
-EOF
-```
-
-#### 3.2.5 部署 consul connector(c2-k8s-to-c3-consul)
-
-**c2 k8s微服务同步到c3 consul**
-
-```
-kubectl apply  -f - <<EOF
-kind: ConsulConnector
-apiVersion: connector.flomesh.io/v1alpha1
-metadata:
-  name: c2-k8s-to-c3-consul
-spec:
-  httpAddr: $c3_consul_external_ip:8500
-  deriveNamespace: none
-  syncToK8S:
-    enable: false
-  syncFromK8S:
-    enable: true
-    withGateway: 
-      enable: true
-    allowK8sNamespaces:
-      - derive-consul
-EOF
-```
-
-### 3.3 C3 集群
-
-```bash
-kubecm switch k3d-C3
-```
-
-#### 3.3.1 部署 fgw
-
-```bash
-export fsm_namespace=fsm-system
-kubectl apply -n "$fsm_namespace" -f - <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: k8s-c3-fgw
-spec:
-  gatewayClassName: fsm
-  listeners:
-    - protocol: HTTP
-      port: 10080
-      name: igrs-http
-      allowedRoutes:
-        namespaces:
-          from: All
-    - protocol: HTTP
-      port: 10090
-      name: egrs-http
-      allowedRoutes:
-        namespaces:
-          from: All
-EOF
-
-kubectl wait --all --for=condition=ready pod -n "$fsm_namespace" -l app=svclb-fsm-gateway-fsm-system-tcp --timeout=180s
-
-kubectl patch AccessControl -n fsm-policy global --type=json -p='[{"op": "add", "path": "/spec/sources/-", "value": {"kind":"Service","namespace":"fsm-system","name":"fsm-gateway-fsm-system-tcp"}}]'
-
-export c3_fgw_cluster_ip="$(kubectl get svc -n $fsm_namespace --field-selector metadata.name=fsm-gateway-fsm-system-tcp -o jsonpath='{.items[0].spec.clusterIP}')"
-echo c3_fgw_cluster_ip $c3_fgw_cluster_ip
-
-export c3_fgw_external_ip="$(kubectl get svc -n $fsm_namespace --field-selector metadata.name=fsm-gateway-fsm-system-tcp -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')"
-echo c3_fgw_external_ip $c3_fgw_external_ip
-
-export c3_fgw_pod_ip="$(kubectl get pod -n $fsm_namespace --selector app=fsm-gateway -o jsonpath='{.items[0].status.podIP}')"
-echo c3_fgw_pod_ip $c3_fgw_pod_ip
-```
-
-#### 3.3.2 部署 fgw connector
-
-```bash
-kubectl apply  -f - <<EOF
-kind: GatewayConnector
-apiVersion: connector.flomesh.io/v1alpha1
-metadata:
-  name: c3-fgw
-spec:
-  ingress:
-    ipSelector: ExternalIP
-    httpPort: 10080
-  egress:
-    ipSelector: ClusterIP
-    httpPort: 10090
-  syncToFgw:
-    enable: true
-    allowK8sNamespaces:
-      - derive-consul
-EOF
-```
-
-#### 3.3.3 创建 derive-consul namespace
-
-```bash
-kubectl create namespace derive-consul
-fsm namespace add derive-consul
-kubectl patch namespace derive-consul -p '{"metadata":{"annotations":{"flomesh.io/mesh-service-sync":"consul"}}}'  --type=merge
-```
-
-#### 3.3.4 部署 consul connector(c3-consul-to-c3-derive-consul)
-
-```
-kubectl apply  -f - <<EOF
-kind: ConsulConnector
-apiVersion: connector.flomesh.io/v1alpha1
-metadata:
-  name: c3-consul-to-c3-derive-consul
-spec:
-  httpAddr: $c3_consul_cluster_ip:8500
-  deriveNamespace: derive-consul
-  asInternalServices: true
-  syncToK8S:
-    enable: true
-    withGateway: 
-      enable: true
-  syncFromK8S:
-    enable: false
-EOF
-```
-
-## 4 确认服务调用效果
-
-```bash
-kubecm switch k3d-C3
-
-PORT_FORWARD="14003:14001" make bookbuyer-port-forward &
-
-访问 
-http://127.0.0.1:14003
-确认运行效果
+kubectl exec $c3_curl_pod -n default -- curl -s http://hello:$c2_hello_svc_port
 ```
 
 ## 5 卸载 C1 C2 C3 三个集群
