@@ -22,7 +22,7 @@ kind: Deployment
 metadata:
   name: hello
 spec:
-  replicas: 1
+  replicas: ${replicas}
   selector:
     matchLabels:
       app: hello

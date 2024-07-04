@@ -1,4 +1,4 @@
-# 场景 单服务单副本
+# 场景 单服务多副本
 
 ## 1 部署 C1 C2 C3 三个集群
 
@@ -52,23 +52,19 @@ kubectl exec -n default $ztm_ca_pod -- ztm invite fsm -b $ztm_ca_external_ip:888
 kubecm switch k3d-C2
 ```
 
-#### 2.2.1 部署 curl & hello 服务
+#### 2.2.1 部署 hello 服务
 
 ```bash
-make hello-deploy
+replicas=2 make hello-deploy
 
-export c2_hello_pod_ip="$(kubectl get pod -n default --selector app=hello -o jsonpath='{.items[0].status.podIP}')"
-echo c2_hello_pod_ip $c2_hello_pod_ip
+export c2_hello_1_pod_ip="$(kubectl get pod -n default --selector app=hello -o jsonpath='{.items[0].status.podIP}')"
+echo c2_hello_1_pod_ip $c2_hello_1_pod_ip
+
+export c2_hello_2_pod_ip="$(kubectl get pod -n default --selector app=hello -o jsonpath='{.items[1].status.podIP}')"
+echo c2_hello_2_pod_ip $c2_hello_2_pod_ip
 
 export c2_hello_svc_port="$(kubectl get -n default svc hello -o jsonpath='{.spec.ports[0].port}')"
 echo c2_hello_svc_port $c2_hello_svc_port
-
-make curl-deploy
-
-export c2_curl_pod="$(kubectl get pod -n default --selector app=curl -o jsonpath='{.items[0].metadata.name}')"
-echo c2_curl_pod $c2_curl_pod
-
-kubectl exec $c2_curl_pod -n default -- curl -s http://hello.default:14001
 ```
 
 #### 2.2.2 部署 FSM Mesh
@@ -97,7 +93,11 @@ spec:
     serviceExports:
     - protocol: tcp
       name: hello
-      ip: $c2_hello_pod_ip
+      ip: $c2_hello_1_pod_ip
+      port: $c2_hello_svc_port
+    - protocol: tcp
+      name: hello
+      ip: $c2_hello_2_pod_ip
       port: $c2_hello_svc_port
 EOF
 ```
