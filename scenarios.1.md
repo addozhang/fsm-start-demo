@@ -190,7 +190,7 @@ EOF
 #  ports:
 #    - name: http
 #      port: $c2_hello_svc_port
-#      targetPort: $c2_hello_svc_port
+#      targetPort: $c2_hello_svc_target_port
 #EOF
 
 # clusterIP service
