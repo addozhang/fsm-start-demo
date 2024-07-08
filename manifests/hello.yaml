@@ -12,8 +12,9 @@ metadata:
     service: hello
 spec:
   ports:
-  - name: hello
-    port: 14001
+  - name: http
+    port: 80
+    targetPort: 14001
   selector:
     app: hello
 ---
@@ -41,7 +42,7 @@ spec:
         ports:
         - containerPort: 14001
         args:
-        - "--message='hello from (Node: {{env \"NODE_NAME\"}} Pod: {{env \"POD_NAME\"}} Address: {{addr}})'"
+        - "--message='hello from cluster ${cluster} (Node: {{env \"NODE_NAME\"}} Pod: {{env \"POD_NAME\"}} Address: {{addr}})'"
         - "--http=:14001"
         env:
           - name: NODE_NAME

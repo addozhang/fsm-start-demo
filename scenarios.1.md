@@ -52,23 +52,26 @@ kubectl exec -n default $ztm_ca_pod -- ztm invite fsm -b $ztm_ca_external_ip:888
 kubecm switch k3d-C2
 ```
 
-#### 2.2.1 部署 curl & hello 服务
+#### 2.2.1 部署 k8s hello 服务
 
 ```bash
-make hello-deploy
+replicas=1 cluster=C2 make hello-deploy
 
-export c2_hello_pod_ip="$(kubectl get pod -n default --selector app=hello -o jsonpath='{.items[0].status.podIP}')"
-echo c2_hello_pod_ip $c2_hello_pod_ip
+export c2_hello_1_pod_ip="$(kubectl get pod -n default --selector app=hello -o jsonpath='{.items[0].status.podIP}')"
+echo c2_hello_1_pod_ip $c2_hello_1_pod_ip
 
 export c2_hello_svc_port="$(kubectl get -n default svc hello -o jsonpath='{.spec.ports[0].port}')"
 echo c2_hello_svc_port $c2_hello_svc_port
+
+export c2_hello_svc_target_port="$(kubectl get -n default svc hello -o jsonpath='{.spec.ports[0].targetPort}')"
+echo c2_hello_svc_target_port $c2_hello_svc_target_port
 
 make curl-deploy
 
 export c2_curl_pod="$(kubectl get pod -n default --selector app=curl -o jsonpath='{.items[0].metadata.name}')"
 echo c2_curl_pod $c2_curl_pod
 
-kubectl exec $c2_curl_pod -n default -- curl -s http://hello.default:14001
+kubectl exec $c2_curl_pod -n default -- curl -s http://hello.default:$c2_hello_svc_port
 ```
 
 #### 2.2.2 部署 FSM Mesh
@@ -97,8 +100,8 @@ spec:
     serviceExports:
     - protocol: tcp
       name: hello
-      ip: $c2_hello_pod_ip
-      port: $c2_hello_svc_port
+      ip: $c2_hello_1_pod_ip
+      port: $c2_hello_svc_target_port
 EOF
 ```
 
@@ -144,55 +147,79 @@ spec:
     - protocol: tcp
       name: hello
       ip: 0.0.0.0
-      port: $c2_hello_svc_port
+      port: $c2_hello_svc_target_port
 EOF
 ```
 
-#### 2.3.4 创建 hello 服务
+#### 2.3.4 部署 k8s hello 服务
+
+```bash
+replicas=1 cluster=C3 make hello-deploy
+```
+
+#### 2.3.5 创建 k8s hello 服务的 ztm EndpointSlice
 
 ```bash
 export c3_ztm_agent_pod_ip="$(kubectl get pod -n fsm-system --selector app=fsm-ztmagent-c3-agent -o jsonpath='{.items[0].status.podIP}')"
 echo c3_ztm_agent_pod_ip $c3_ztm_agent_pod_ip
 
 kubectl apply  -f - <<EOF
-apiVersion: v1
-kind: Service
-metadata:
-  name: hello
-spec:
-  clusterIP: None
-  ports:
-    - name: http
-      port: $c2_hello_svc_port
-      targetPort: $c2_hello_svc_port
----
 apiVersion: discovery.k8s.io/v1
 kind: EndpointSlice
 metadata:
-  name: external-hello-1
+  name: hello-ztm-agent
   labels:
     kubernetes.io/service-name: hello
 addressType: IPv4
 ports:
-  - name: ''
-    appProtocol: http
-    protocol: TCP
-    port: $c2_hello_svc_port
+  - name: http
+    port: $c2_hello_svc_target_port
 endpoints:
   - addresses:
       - $c3_ztm_agent_pod_ip
 EOF
+
+# headless service
+#kubectl apply  -f - <<EOF
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: hello
+#spec:
+#  clusterIP: None
+#  ports:
+#    - name: http
+#      port: $c2_hello_svc_port
+#      targetPort: $c2_hello_svc_port
+#EOF
+
+# clusterIP service
+#kubectl apply  -f - <<EOF
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: hello
+#  labels:
+#    service: hello
+#spec:
+#  selector:
+#    app: hello
+#  ports:
+#    - name: hello
+#      port: $c2_hello_svc_port
+#      targetPort: $c2_hello_svc_target_port
+#EOF
 ```
 
 #### 2.3.5 测试 hello 服务
 
 ```bash
-kubectl exec $c3_curl_pod -n default -- curl -s http://$c3_ztm_agent_pod_ip:$c2_hello_svc_port
+kubectl exec $c3_curl_pod -n default -- curl -s http://$c3_ztm_agent_pod_ip:$c2_hello_svc_target_port
 
 kubectl exec $c3_curl_pod -n default -- curl -s http://hello:$c2_hello_svc_port
 ```
 
-## 5 卸载 C1 C2 C3 三个集群
+## 3 卸载 C1 C2 C3 三个集群
 
 ```bash
 export clusters="C1 C2 C3"

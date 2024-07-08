@@ -4,6 +4,7 @@ fsm_cluster_name ?= fsm
 PORT_FORWARD ?= 14001:14001
 WITH_MESH ?= false
 replicas ?= 1
+cluster ?= c0
 
 .PHONY: k3d-up
 k3d-up:
@@ -20,7 +21,7 @@ deploy-fsm:
 
 .PHONY: hello-deploy
 hello-deploy:
-	replicas=$(replicas) envsubst < ./manifests/hello.yaml | kubectl apply -n default -f -
+	replicas=$(replicas) cluster=$(cluster) envsubst < ./manifests/hello.yaml | kubectl apply -n default -f -
 	sleep 2
 	kubectl wait --all --for=condition=ready pod -n default -l app=hello --timeout=180s
 
