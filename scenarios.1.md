@@ -225,3 +225,58 @@ kubectl exec $c3_curl_pod -n default -- curl -s http://hello:$c2_hello_svc_port
 export clusters="C1 C2 C3"
 make k3d-reset
 ```
+
+
+
+
+
+```
+kubectl apply  -f - <<EOF
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: tcpdump
+  labels:
+    k8s-app: tcpdump
+spec:
+  selector:
+    matchLabels:
+      name: tcpdump
+  template:
+    metadata:
+      labels:
+        name: tcpdump
+    spec:
+      hostNetwork: true
+      containers:
+      - name: fluentd-elasticsearch
+        image: itsthenetwork/alpine-tcpdump:latest
+        securityContext:
+          privileged: true
+        resources:
+          limits:
+            memory: 600Mi
+          requests:
+            cpu: 600m
+            memory: 600Mi
+EOF
+
+replicas=1 cluster=C1 make hello-deploy
+
+kubectl apply  -f - <<EOF
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: hello-ztm-agent
+  labels:
+    kubernetes.io/service-name: hello
+addressType: IPv4
+ports:
+  - name: http
+    port: 14001
+endpoints:
+  - addresses:
+      - 192.168.226.63
+EOF
+```
+
