@@ -35,7 +35,7 @@ spec:
       nodeSelector:
         kubernetes.io/os: linux
       containers:
-      - image: cybwan/curl
-        imagePullPolicy: IfNotPresent
+      - image: cybwan/ebpf-base:latest
+        imagePullPolicy: Always
         name: curl
         command: ["sleep", "365d"]

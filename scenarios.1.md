@@ -235,31 +235,78 @@ kubectl apply  -f - <<EOF
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: tcpdump
+  name: f4gw
   labels:
-    k8s-app: tcpdump
+    k8s-app: f4gw
 spec:
   selector:
     matchLabels:
-      name: tcpdump
+      name: f4gw
   template:
     metadata:
       labels:
-        name: tcpdump
+        name: f4gw
     spec:
       hostNetwork: true
       containers:
-      - name: fluentd-elasticsearch
-        image: itsthenetwork/alpine-tcpdump:latest
+      - name: f4gw
+        image: cybwan/ebpf-build:latest
+        imagePullPolicy: Always
         securityContext:
           privileged: true
+        command: ["sleep", "365d"]
         resources:
           limits:
-            memory: 600Mi
+            memory: 1024Mi
           requests:
             cpu: 600m
-            memory: 600Mi
+            memory: 1024Mi
 EOF
+
+clear;sudo cat /sys/kernel/debug/tracing/trace_pipe|grep bpf_trace_printk
+
+git clone https://github.com/cybwan/f4gw-cni.git -b release/v0.1
+
+export https_proxy=http://192.168.226.1:7890 http_proxy=http://192.168.226.1:7890 all_proxy=socks5://192.168.226.1:7890
+
+unset https_proxy http_proxy all_proxy
+
+curl 39.156.66.14 -I
+
+10.42.0.1       16787978
+10.42.0.2       33565194
+10.42.0.3       50342410
+10.42.0.4       67119626
+10.42.0.5       83896842
+10.42.0.6       100674058
+10.42.0.7       117451274
+10.42.0.8       134228490
+10.42.0.9       151005706
+172.18.0.3      50336428
+39.156.66.14    239246375
+
+curl 69.162.80.61 -I
+
+curl 172.18.0.3 -I
+
+iptables -F
+iptables -t nat -F
+iptables -t mangle -F
+iptables -t nat -A POSTROUTING -o ens33 -j MASQUERADE
+echo 1 > /proc/sys/net/ipv4/ip_forward
+
+alias h1="sudo ip netns exec h1"
+h1 curl 39.156.66.14 -I
+
+https://tldp.org/HOWTO/html_single/Masquerading-Simple-HOWTO/
+https://atbug.com/cross-node-traffic-on-flannel-vxlan-network/
+
+sudo apt install -y \
+linux-modules-5.15.0-113-generic \
+linux-headers-5.15.0-113-generic \
+linux-image-5.15.0-113-generic
+
+sudo apt -y --fix-broken install
 
 replicas=1 cluster=C1 make hello-deploy
 

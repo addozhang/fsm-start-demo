@@ -19,6 +19,12 @@ k3d-reset:
 deploy-fsm:
 	$fsm_cluster_name=$(fsm_cluster_name) scripts/deploy-fsm.sh
 
+.PHONY: f4gw-deploy
+f4gw-deploy:
+	kubectl apply -n default -f ./manifests/f4gw.yaml
+	sleep 2
+	kubectl wait --all --for=condition=ready pod -n default -l app=f4gw --timeout=180s
+
 .PHONY: hello-deploy
 hello-deploy:
 	replicas=$(replicas) cluster=$(cluster) envsubst < ./manifests/hello.yaml | kubectl apply -n default -f -
