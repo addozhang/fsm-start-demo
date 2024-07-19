@@ -7,7 +7,7 @@
 ```bash
 system=$(uname -s | tr [:upper:] [:lower:])
 arch=$(dpkg --print-architecture)
-release=v1.3.5-alpha.1
+release=v1.4.0-alpha.2
 curl -L https://github.com/cybwan/fsm/releases/download/${release}/fsm-${release}-${system}-${arch}.tar.gz | tar -vxzf -
 ./${system}-${arch}/fsm version
 cp ./${system}-${arch}/fsm /usr/local/bin/
@@ -20,10 +20,6 @@ git clone https://github.com/cybwan/fsm-start-demo.git -b ztm
 cd fsm-start-demo
 ```
 
-## 场景一: [单服务单副本](scenarios.1.md)
+## 场景一: [服务单副本](scenarios.1.md)
 
-## 场景二: [单服务多副本](scenarios.2.md)
-
-## 场景三: [多服务多副本异端口](scenarios.3.md)
-
-## 场景四: [多服务多副本同端口](scenarios.4.md)
+## 场景二: [服务多副本](scenarios.2.md)

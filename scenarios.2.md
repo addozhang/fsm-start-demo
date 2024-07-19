@@ -1,4 +1,4 @@
-# 场景 单服务多副本
+# 场景 服务多副本
 
 ## 1 部署 C1 C2 C3 三个集群
 
@@ -52,28 +52,51 @@ kubectl exec -n default $ztm_ca_pod -- ztm invite fsm -b $ztm_ca_external_ip:888
 kubecm switch k3d-C2
 ```
 
-#### 2.2.1 部署 hello 服务
+#### 2.2.1 部署 httpbin 服务
 
 ```bash
-replicas=2 make hello-deploy
+replicas=2 cluster=C2 make httpbin-deploy
 
-export c2_hello_1_pod_ip="$(kubectl get pod -n default --selector app=hello -o jsonpath='{.items[0].status.podIP}')"
-echo c2_hello_1_pod_ip $c2_hello_1_pod_ip
+export c2_httpbin_1_pod_ip="$(kubectl get pod -n demo --selector app=httpbin -o jsonpath='{.items[0].status.podIP}')"
+echo c2_httpbin_1_pod_ip $c2_httpbin_1_pod_ip
 
-export c2_hello_2_pod_ip="$(kubectl get pod -n default --selector app=hello -o jsonpath='{.items[1].status.podIP}')"
-echo c2_hello_2_pod_ip $c2_hello_2_pod_ip
+export c2_httpbin_2_pod_ip="$(kubectl get pod -n demo --selector app=httpbin -o jsonpath='{.items[1].status.podIP}')"
+echo c2_httpbin_2_pod_ip $c2_httpbin_2_pod_ip
 
-export c2_hello_svc_port="$(kubectl get -n default svc hello -o jsonpath='{.spec.ports[0].port}')"
-echo c2_hello_svc_port $c2_hello_svc_port
+export c2_httpbin_svc_port="$(kubectl get -n demo svc httpbin -o jsonpath='{.spec.ports[0].port}')"
+echo c2_httpbin_svc_port $c2_httpbin_svc_port
+
+export c2_httpbin_svc_target_port="$(kubectl get -n demo svc httpbin -o jsonpath='{.spec.ports[0].targetPort}')"
+echo c2_httpbin_svc_target_port $c2_httpbin_svc_target_port
+
+make curl-deploy
+
+export c2_curl_pod="$(kubectl get pod -n demo --selector app=curl -o jsonpath='{.items[0].metadata.name}')"
+echo c2_curl_pod $c2_curl_pod
 ```
 
-#### 2.2.2 部署 FSM Mesh
+#### 2.2.2 测试 httpbin 服务
+
+多次执行:
+
+```bash
+kubectl exec $c2_curl_pod -n demo -- curl -s http://httpbin:$c2_httpbin_svc_port
+```
+
+预期返回:
+
+```bash
+Hi, I am from Cluster: C2, Node: k3d-c2-server-0, Pod: httpbin-8f5d6b99b-fbv6c
+Hi, I am from Cluster: C2, Node: k3d-c2-server-0, Pod: httpbin-8f5d6b99b-chq4r!
+```
+
+#### 2.2.3 部署 FSM Mesh
 
 ```bash
 fsm_cluster_name=C2 make deploy-fsm
 ```
 
-#### 2.2.3 创建 ZTM Agent
+#### 2.2.4 部署 ZTM Agent
 
 ```bash
 kubectl apply  -f - <<EOF
@@ -92,14 +115,17 @@ spec:
   - meshName: k8s
     serviceExports:
     - protocol: tcp
-      name: hello
-      ip: $c2_hello_1_pod_ip
-      port: $c2_hello_svc_port
+      name: c2-httpbin-ep1
+      ip: $c2_httpbin_1_pod_ip
+      port: $c2_httpbin_svc_target_port
     - protocol: tcp
-      name: hello
-      ip: $c2_hello_2_pod_ip
-      port: $c2_hello_svc_port
+      name: c2-httpbin-ep2
+      ip: $c2_httpbin_2_pod_ip
+      port: $c2_httpbin_svc_target_port
 EOF
+
+sleep 2
+kubectl wait --all --for=condition=ready pod -n fsm-system -l app=fsm-ztmagent-c2-agent --timeout=180s
 ```
 
 ### 2.3 C3集群
@@ -108,22 +134,46 @@ EOF
 kubecm switch k3d-C3
 ```
 
-#### 2.3.1 部署 curl 服务
-
-```bash
-make curl-deploy
-
-export c3_curl_pod="$(kubectl get pod -n default --selector app=curl -o jsonpath='{.items[0].metadata.name}')"
-echo c3_curl_pod $c3_curl_pod
-```
-
-#### 2.3.2 部署 FSM Mesh
+#### 2.3.1 部署 FSM Mesh
 
 ```bash
 fsm_cluster_name=C3 make deploy-fsm
 ```
 
-#### 2.3.3 创建 ZTM Agent
+#### 2.3.2 部署 curl 服务
+
+```bash
+WITH_MESH=true make curl-deploy
+
+export c3_curl_pod="$(kubectl get pod -n demo --selector app=curl -o jsonpath='{.items[0].metadata.name}')"
+echo c3_curl_pod $c3_curl_pod
+```
+
+#### 2.3.3 部署 httpbin 服务
+
+```bash
+WITH_MESH=true replicas=2 cluster=C3 make httpbin-deploy
+
+export c3_httpbin_svc_port="$(kubectl get -n demo svc httpbin -o jsonpath='{.spec.ports[0].port}')"
+echo c3_httpbin_svc_port $c3_httpbin_svc_port
+```
+
+#### 2.3.4 测试 httpbin 服务
+
+多次执行:
+
+```bash
+kubectl exec $c3_curl_pod -n demo -c curl -- curl -s http://httpbin:$c3_httpbin_svc_port
+```
+
+预期返回:
+
+```bash
+Hi, I am from Cluster: C3, Node: k3d-c3-server-0, Pod: httpbin-5c4986857-64v55!
+Hi, I am from Cluster: C3, Node: k3d-c3-server-0, Pod: httpbin-5c4986857-tvrxv!
+```
+
+#### 2.3.5 部署 ZTM Agent
 
 ```bash
 kubectl apply  -f - <<EOF
@@ -142,57 +192,86 @@ spec:
   - meshName: k8s
     serviceImports:
     - protocol: tcp
-      name: hello
+      name: c2-httpbin-ep1
       ip: 0.0.0.0
-      port: $c2_hello_svc_port
+      port: 18081
+    - protocol: tcp
+      name: c2-httpbin-ep2
+      ip: 0.0.0.0
+      port: 18082
 EOF
-```
 
-#### 2.3.4 创建 hello 服务
+sleep 2
+kubectl wait --all --for=condition=ready pod -n fsm-system -l app=fsm-ztmagent-c3-agent --timeout=180s
 
-```bash
 export c3_ztm_agent_pod_ip="$(kubectl get pod -n fsm-system --selector app=fsm-ztmagent-c3-agent -o jsonpath='{.items[0].status.podIP}')"
 echo c3_ztm_agent_pod_ip $c3_ztm_agent_pod_ip
+```
 
-kubectl apply  -f - <<EOF
-apiVersion: v1
-kind: Service
+#### 2.3.6 导入 c2 httpbin 服务
+
+```bash
+kubectl apply -n demo -f - <<EOF
+apiVersion: multicluster.flomesh.io/v1alpha1
+kind: ServiceImport
 metadata:
-  name: hello
+  name: httpbin
 spec:
-  clusterIP: None
   ports:
-    - name: http
-      port: $c2_hello_svc_port
-      targetPort: $c2_hello_svc_port
----
-apiVersion: discovery.k8s.io/v1
-kind: EndpointSlice
-metadata:
-  name: external-hello-1
-  labels:
-    kubernetes.io/service-name: hello
-addressType: IPv4
-ports:
-  - name: ''
-    appProtocol: http
-    protocol: TCP
-    port: $c2_hello_svc_port
-endpoints:
-  - addresses:
-      - $c3_ztm_agent_pod_ip
+    - endpoints:
+        - clusterKey: default/default/default/c2-httpbin-ep1
+          target:
+            host: $c3_ztm_agent_pod_ip
+            ip: $c3_ztm_agent_pod_ip
+            path: /
+            port: 18081
+        - clusterKey: default/default/default/c2-httpbin-ep2
+          target:
+            host: $c3_ztm_agent_pod_ip
+            ip: $c3_ztm_agent_pod_ip
+            path: /
+            port: 18082
+      port: $c3_httpbin_svc_port
+      protocol: HTTP
+  serviceAccountName: '*'
+  type: ClusterSetIP
 EOF
 ```
 
-#### 2.3.5 测试 hello 服务
+#### 2.3.7 设置多集群负载均衡策略
 
 ```bash
-kubectl exec $c3_curl_pod -n default -- curl -s http://$c3_ztm_agent_pod_ip:$c2_hello_svc_port
-
-kubectl exec $c3_curl_pod -n default -- curl -s http://hello:$c2_hello_svc_port
+cat <<EOF | kubectl apply -f -
+apiVersion: multicluster.flomesh.io/v1alpha1
+kind: GlobalTrafficPolicy
+metadata:
+  namespace: demo
+  name: httpbin
+spec:
+  lbType: ActiveActive
+EOF
 ```
 
-## 5 卸载 C1 C2 C3 三个集群
+#### 2.3.8 测试 httpbin 服务
+
+多次执行:
+
+```bash
+kubectl exec $c3_curl_pod -n demo -c curl -- curl -s http://httpbin:$c3_httpbin_svc_port
+```
+
+预期返回:
+
+```bash
+Hi, I am from Cluster: C2, Node: k3d-c2-server-0, Pod: httpbin-8f5d6b99b-chq4r!
+Hi, I am from Cluster: C2, Node: k3d-c2-server-0, Pod: httpbin-8f5d6b99b-fbv6c!
+Hi, I am from Cluster: C3, Node: k3d-c3-server-0, Pod: httpbin-5c4986857-tvrxv!
+Hi, I am from Cluster: C2, Node: k3d-c2-server-0, Pod: httpbin-8f5d6b99b-chq4r!
+Hi, I am from Cluster: C2, Node: k3d-c2-server-0, Pod: httpbin-8f5d6b99b-fbv6c!
+Hi, I am from Cluster: C3, Node: k3d-c3-server-0, Pod: httpbin-5c4986857-64v55!
+```
+
+## 3 卸载 C1 C2 C3 三个集群
 
 ```bash
 export clusters="C1 C2 C3"
