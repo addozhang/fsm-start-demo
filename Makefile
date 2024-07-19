@@ -25,25 +25,29 @@ f4gw-deploy:
 	sleep 2
 	kubectl wait --all --for=condition=ready pod -n default -l app=f4gw --timeout=180s
 
-.PHONY: hello-deploy
-hello-deploy:
-	replicas=$(replicas) cluster=$(cluster) envsubst < ./manifests/hello.yaml | kubectl apply -n default -f -
+.PHONY: httpbin-deploy
+httpbin-deploy:
+	kubectl get namespace demo >> /dev/null 2>&1 || kubectl create namespace demo
+	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add demo; fi
+	replicas=$(replicas) cluster=$(cluster) envsubst < ./manifests/httpbin.yaml | kubectl apply -n demo -f -
 	sleep 2
-	kubectl wait --all --for=condition=ready pod -n default -l app=hello --timeout=180s
+	kubectl wait --all --for=condition=ready pod -n demo -l app=httpbin --timeout=180s
 
-.PHONY: hello-reboot
-hello-reboot:
-	kubectl rollout restart deployment -n default hello
+.PHONY: httpbin-reboot
+httpbin-reboot:
+	kubectl rollout restart deployment -n demo httpbin
 
 .PHONY: curl-deploy
 curl-deploy:
-	kubectl apply -n default -f ./manifests/curl.yaml
+	kubectl get namespace demo >> /dev/null 2>&1 || kubectl create namespace demo
+	if [ "$(WITH_MESH)" = "true" ]; then fsm namespace add demo; fi
+	kubectl apply -n demo -f ./manifests/curl.yaml
 	sleep 2
-	kubectl wait --all --for=condition=ready pod -n default -l app=curl --timeout=180s
+	kubectl wait --all --for=condition=ready pod -n demo -l app=curl --timeout=180s
 
 .PHONY: curl-reboot
 curl-reboot:
-	kubectl rollout restart deployment -n default curl
+	kubectl rollout restart deployment -n demo curl
 
 .PHONY: ztm-ca-deploy
 ztm-ca-deploy:
