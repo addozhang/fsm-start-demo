@@ -20,4 +20,6 @@ git clone https://github.com/cybwan/fsm-start-demo.git -b ztm
 cd fsm-start-demo
 ```
 
-## [场景一](scenarios.1.md)
+## 场景一 [单服务单副本](scenarios.1.md)
+
+## 场景二 [多服务多副本](scenarios.2.md)
