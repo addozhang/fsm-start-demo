@@ -15,35 +15,20 @@ make k3d-up
 kubecm switch k3d-C1
 ```
 
-#### 2.1.1 部署 ZTM CA 服务
+#### 2.1.1 部署 ZTM HUB 服务
 
 ```bash
-make ztm-ca-deploy
-
-export ztm_ca_external_ip="$(kubectl get svc -n default --field-selector metadata.name=ztm-ca -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')"
-echo ztm_ca_external_ip $ztm_ca_external_ip
-
-export ztm_ca_pod="$(kubectl get pod -n default --selector app=ztm-ca -o jsonpath='{.items[0].metadata.name}')"
-echo ztm_ca_pod $ztm_ca_pod
-```
-
-#### 2.1.2 部署 ZTM HUB 服务
-
-```bash
-make ztm-hub-deploy
+make ztm-svc-deploy
 
 export ztm_hub_external_ip="$(kubectl get svc -n default --field-selector metadata.name=ztm-hub -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')"
 echo ztm_hub_external_ip $ztm_hub_external_ip
 
+names=$ztm_hub_external_ip make ztm-hub-deploy
+
 export ztm_hub_pod="$(kubectl get pod -n default --selector app=ztm-hub -o jsonpath='{.items[0].metadata.name}')"
 echo ztm_hub_pod $ztm_hub_pod
-```
 
-#### 2.1.3 创建 ZTM 用户
-
-```bash
-kubectl exec -n default $ztm_ca_pod -- ztm evict fsm
-kubectl exec -n default $ztm_ca_pod -- ztm invite fsm -b $ztm_ca_external_ip:8888 > /tmp/fsm.perm.json
+kubectl cp -n default ${ztm_hub_pod}:fsm.perm.json /tmp/fsm.perm.json
 ```
 
 ### 2.2 C2集群
@@ -107,15 +92,27 @@ spec:
       certificate: $(cat /tmp/fsm.perm.json | jq .agent.certificate)
   joinMeshes:
   - meshName: k8s
-    serviceExports:
-    - protocol: tcp
-      name: httpbin
-      ip: $c2_httpbin_1_pod_ip
-      port: $c2_httpbin_svc_target_port
 EOF
 
 sleep 2
 kubectl wait --all --for=condition=ready pod -n fsm-system -l app=fsm-ztmagent-c2-agent --timeout=180s
+```
+
+#### 2.2.5 导出服务
+
+```bash
+kubectl apply -n demo -f - <<EOF
+apiVersion: multicluster.flomesh.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: httpbin
+spec:
+  serviceAccountName: "*"
+  rules:
+    - portNumber: 80
+      path: "/"
+      pathType: Prefix
+EOF
 ```
 
 ### 2.3 C3集群
@@ -177,45 +174,13 @@ spec:
       certificate: $(cat /tmp/fsm.perm.json | jq .agent.certificate)
   joinMeshes:
   - meshName: k8s
-    serviceImports:
-    - protocol: tcp
-      name: httpbin
-      ip: 0.0.0.0
-      port: $c2_httpbin_svc_target_port
 EOF
 
 sleep 2
 kubectl wait --all --for=condition=ready pod -n fsm-system -l app=fsm-ztmagent-c3-agent --timeout=180s
-
-export c3_ztm_agent_pod_ip="$(kubectl get pod -n fsm-system --selector app=fsm-ztmagent-c3-agent -o jsonpath='{.items[0].status.podIP}')"
-echo c3_ztm_agent_pod_ip $c3_ztm_agent_pod_ip
 ```
 
-#### 2.3.6 导入 c2 httpbin 服务
-
-```bash
-kubectl apply -n demo -f - <<EOF
-apiVersion: multicluster.flomesh.io/v1alpha1
-kind: ServiceImport
-metadata:
-  name: httpbin
-spec:
-  ports:
-    - endpoints:
-        - clusterKey: default/default/default/c2
-          target:
-            host: $c3_ztm_agent_pod_ip
-            ip: $c3_ztm_agent_pod_ip
-            path: /
-            port: $c2_httpbin_svc_target_port
-      port: $c3_httpbin_svc_port
-      protocol: HTTP
-  serviceAccountName: '*'
-  type: ClusterSetIP
-EOF
-```
-
-#### 2.3.7 设置多集群负载均衡策略
+#### 2.3.6 设置多集群负载均衡策略
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -229,7 +194,7 @@ spec:
 EOF
 ```
 
-#### 2.3.8 测试 httpbin 服务
+#### 2.3.6 测试 httpbin 服务
 
 多次执行:
 

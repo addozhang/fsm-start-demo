@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ztm-hub
+  labels:
+    app: ztm-hub
+spec:
+  type: LoadBalancer
+  selector:
+    app: ztm-hub
+  ports:
+    - port: 8888
+      targetPort: 8888
+      protocol: TCP
+      name: ztm-hub

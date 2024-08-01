@@ -5,6 +5,7 @@ PORT_FORWARD ?= 14001:14001
 WITH_MESH ?= false
 replicas ?= 1
 cluster ?= c0
+names ?= 0.0.0.0
 
 .PHONY: k3d-up
 k3d-up:
@@ -23,12 +24,6 @@ k3d-reset:
 .PHONY: deploy-fsm
 deploy-fsm:
 	$fsm_cluster_name=$(fsm_cluster_name) scripts/deploy-fsm.sh
-
-.PHONY: f4gw-deploy
-f4gw-deploy:
-	kubectl apply -n default -f ./manifests/f4gw.yaml
-	sleep 2
-	kubectl wait --all --for=condition=ready pod -n default -l app=f4gw --timeout=180s
 
 .PHONY: httpbin-deploy
 httpbin-deploy:
@@ -54,14 +49,14 @@ curl-deploy:
 curl-reboot:
 	kubectl rollout restart deployment -n demo curl
 
-.PHONY: ztm-ca-deploy
-ztm-ca-deploy:
-	kubectl apply -n default -f ./manifests/ztm-ca.yaml
+.PHONY: ztm-svc-deploy
+ztm-svc-deploy:
+	kubectl apply -n default -f ./manifests/ztm-svc.yaml
 	sleep 2
-	kubectl wait --all --for=condition=ready pod -n default -l app=ztm-ca --timeout=180s
+	kubectl wait --for=jsonpath='{.status.loadBalancer.ingress}' -n default service/ztm-hub
 
 .PHONY: ztm-hub-deploy
 ztm-hub-deploy:
-	kubectl apply -n default -f ./manifests/ztm-hub.yaml
+	names=$(names) envsubst < ./manifests/ztm-hub.yaml | kubectl apply -n default -f -
 	sleep 2
 	kubectl wait --all --for=condition=ready pod -n default -l app=ztm-hub --timeout=180s
