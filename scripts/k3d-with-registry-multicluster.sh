@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 K3D_IMAGE="${K3D_IMAGE:-rancher/k3s:v1.21.11-k3s1}"
-K3D_HOST_IP="${K3D_HOST_IP:-192.168.127.91}"
+K3D_HOST_IP="${K3D_HOST_IP:-$(ip addr show eth0 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)}"
 K3D_NETWORK="${K3D_NETWORK:-fsm}"
 
 clusters="${clusters:-c0}"
